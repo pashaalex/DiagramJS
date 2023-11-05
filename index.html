@@ -6,14 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Drawing Basics</title>
     <style type="text/css">
-        html {
+        body, html {
             height: 100%;
-        }
-        body {
             margin: 0;
         }
         #svg {
-            border: 1px solid black;
+            border: 1px dashed rgba(0, 0, 0, .2);            
         }
         svg text {
             pointer-events: visiblePainted;
@@ -38,13 +36,16 @@
             border-collapse: collapse;
         }
         .svgContainer {
-            overflow-x: scroll;            
-            width: 100%;
-            height: 600px;            
-            position: relative;
+            position: fixed;
+            top: 0px;
+            bottom: 50px;
+            left: 70px;
+            right: 90px;
+            overflow: auto;
+            border: 1px solid rgba(0, 0, 0, .2);
         }
         #leftMenu {
-            position: absolute;
+            position: fixed;
             left: 10px;
             top: 10px;
             box-shadow: 3px 3px 1px 1px rgba(0, 0, 0, .2);
@@ -66,7 +67,7 @@
             top:400px;
         }
         #rightMenu {
-            position: absolute;
+            position: fixed;
             right: 10px;
             top: 10px;            
             background-color: white;
@@ -91,7 +92,7 @@
             position: absolute;
             right: 0px;            
             display: none;
-            bottom: 0px;
+            bottom: 70px;
         }
             #propertyGrid table, #propertyGrid th, #propertyGrid td {
                 border: 1px solid black;
@@ -105,6 +106,11 @@
                 text-overflow: ellipsis;
             }
         .main_menu_div {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 35px;
             border: 1px solid black;
             border-radius: 5px;
             margin: 4px;
@@ -130,14 +136,15 @@
     </style>
 </head>
 <body>
+
     <div class="svgContainer">
-        <div id="leftMenu"></div>
-        <div id="rightMenu"></div>
         <div id="svg_div">
             <svg id="svg" width="800" height="500"></svg>
         </div>
-        <div id="propertyGrid"></div>
     </div>
+    <div id="propertyGrid"></div>
+    <div id="leftMenu"></div>
+    <div id="rightMenu"></div>
     <div class="main_menu_div">
         <button id="btn">Save SVG</button>
         <button id="btn_save">Save JSON</button>
@@ -146,8 +153,10 @@
     </div>
     <div id="dialogs"></div>
 
+
     <script src="minidraw.core.js"></script>
     <script src="minidraw.erdiagram.js"></script>
+    <script src="minidraw.classdiagram.js"></script>    
     <script type="text/javascript">
         let model = new Model(document.querySelector("#svg"), document.querySelector("#dialogs"));
         model.registreObjectType(ERTableObject.GetObjectTypeInfo());
@@ -155,7 +164,10 @@
         model.registreObjectType(LineObject.GetObjectTypeInfo());
         model.registreObjectType(LineArrowObject.GetObjectTypeInfo());
         model.registreObjectType(UMLUserObject.GetObjectTypeInfo());
-        model.registreObjectType(IfThenObject.GetObjectTypeInfo());        
+        model.registreObjectType(IfThenObject.GetObjectTypeInfo());
+        model.registreObjectType(ClassObject.GetObjectTypeInfo());
+        model.registreObjectType(EllipseObject.GetObjectTypeInfo());
+        
         model.rebuild();
         let btn = document.querySelector("#btn");
         btn.addEventListener("click", function (e) {

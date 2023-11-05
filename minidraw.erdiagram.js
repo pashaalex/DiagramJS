@@ -1,4 +1,4 @@
-﻿class ERTableFieldName extends TextBlock {
+class ERTableFieldName extends TextBlock {
     childId;
     connectionWidth;
     constructor() {

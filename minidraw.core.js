@@ -1,4 +1,4 @@
-﻿const Statuses = {
+const Statuses = {
     None: 0,
     CustomMove: 1,
     DrawConnector: 2,
@@ -8,15 +8,28 @@
 const EndpointTypes = {
     SimpleLine: 0,
     OneToMany: 1,
-    Arrow: 2
+    Arrow: 2,
+    Inheritance: 3,
+    Implementation: 4,
+    Dependancy: 5,
+    Aggregation: 6,
+    Composition: 7
 }
 
 const VerticalAlignTypes = {
-    Over : 0,
+    Over: 0,
     Top: 1,
     Center: 2,
     Bottom: 3,
     Under: 4
+}
+
+const PropertyTypes = {
+    OneLineString: 0,
+    MultilineString: 1,
+    Enum: 2,
+    Numbers: 3,
+    Boolean: 4
 }
 
 class GetConnectionObjectResult {
@@ -28,13 +41,6 @@ class GetConnectionObjectResult {
         this.objectForConnect = objectForConnect;
         this.connectionPointerIndex = connectionPointerIndex;
     }
-}
-
-const PropertyTypes = {
-    OneLineString: 0,
-    MultilineString : 1,
-    Enum: 2,
-    Numbers: 3
 }
 
 class PropertyGridItem {
@@ -344,11 +350,13 @@ class BaseLine {
     #svg_object;
     #selected;
     isDisposed;
+    _isDashed;
     constructor() {
         this.IsInitialized = false;
         this.lineId = BaseLine.globalLineId++;
         this.#selected = false;
         this.isDisposed = false;
+        this._isDashed = false;
         this.x1 = 0;
         this.y1 = 0;
         this.x2 = 0;
@@ -365,6 +373,16 @@ class BaseLine {
         this.#svg_object.setAttribute("stroke", "black");
         this.svg.appendChild(this.#svg_object);
         this.IsInitialized = true;
+    }
+    get IsDashed() {
+        return this._isDashed;
+    }
+    set IsDashed(val) {
+        this._isDashed = val;
+        if (val)
+            this.#svg_object.setAttribute("stroke-dasharray", "4");
+        else
+            this.#svg_object.removeAttribute("stroke-dasharray");
     }
     get IsSelected() {
         return this.#selected;
@@ -633,6 +651,10 @@ class ConnectorLine {
     connectorWidth;
     endPointType;
     endPoint;
+    textBlockBottom;
+    textBlockTop;
+    textBlockBegin;
+    textBlockEnd;
     constructor(relObject1) {
         this.objectId = 0;
         this.connectorWidth = 20;
@@ -641,6 +663,10 @@ class ConnectorLine {
         //this.lineHead2 = null;
         this.endPoint = null;
         this.endPointType = null;
+        this.textBlockBottom = null;
+        this.textBlockTop = null;
+        this.textBlockBegin = null;
+        this.textBlockEnd = null;
     }
     init(svg, model) {
         this.svg = svg;
@@ -688,7 +714,8 @@ class ConnectorLine {
                 this.endPoint.dispose();
                 let activator = EndpointActivators[this.endPointType];
                 this.endPoint = activator(0, 0);
-                this.endPoint.init(this.svg, this.model);
+                this.endPoint.init(this.svg, this.model);                
+                this.line.IsDashed = this.endPoint.isDashed;
                 this.refresh();
             }
         }
@@ -696,6 +723,10 @@ class ConnectorLine {
     getPropertyTypes() {
         let arr = [];
         arr.push(new PropertyGridItem(this, "currentEndpointType", "Endpoint type", PropertyTypes.Enum, EndpointTypes));
+        arr.push(new PropertyGridItem(this, "TextBottom", "Bottom text", PropertyTypes.MultilineString));
+        arr.push(new PropertyGridItem(this, "TextTop", "Top text", PropertyTypes.MultilineString));
+        arr.push(new PropertyGridItem(this, "TextBegin", "Begin text", PropertyTypes.OneLineString));
+        arr.push(new PropertyGridItem(this, "TextEnd", "End text", PropertyTypes.OneLineString));
         return arr;
     }
     connect(relObject2) {
@@ -709,6 +740,56 @@ class ConnectorLine {
         this.endPoint = activator(0, 0);
         this.endPoint.init(this.svg, this.model);
         this.refresh();
+    }
+    #getTextByControlName(controlName) {
+        if (this[controlName] == null) return "";
+        return this[controlName].Text;
+    }
+    #setTextByControlName(controlName, text) {
+        if (((text == null) || (text == "")) && (this[controlName] != null)) {
+            this[controlName].dispose();
+            this[controlName] = null;
+            return;
+        }
+        if ((text != null) && (text != "")) {
+            if (this[controlName] == null)
+                this[controlName] = new TextBlock();
+            this[controlName].Text = text;
+        }
+        this.refresh();
+    }    
+    get TextBottom() {
+        return this.#getTextByControlName("textBlockBottom");
+    }
+    set TextBottom(val) {
+        this.#setTextByControlName("textBlockBottom", val);
+    }
+    get TextTop() {
+        return this.#getTextByControlName("textBlockTop");
+    }
+    set TextTop(val) {
+        this.#setTextByControlName("textBlockTop", val);
+    }
+    get TextBegin() {
+        return this.#getTextByControlName("textBlockBegin");
+    }
+    set TextBegin(val) {
+        this.#setTextByControlName("textBlockBegin", val);
+    }
+    get TextEnd() {
+        return this.#getTextByControlName("textBlockEnd");
+    }
+    set TextEnd(val) {
+        this.#setTextByControlName("textBlockEnd", val);
+    }
+    #horizontalTextBlockSetPosition(textBlock, x, y, directionX, directionY, x2, y2, arrowPadding) {
+        if (directionY == 0) {
+            textBlock.X = (directionX > 0) ? x + this.model.padding : x - textBlock.contentWidth - this.model.padding;
+            textBlock.Y = (y2 > y) ? y - textBlock.contentHeight - this.model.padding - arrowPadding : y + this.model.padding + arrowPadding;
+        } else {
+            textBlock.x = (x2 < x) ? x + this.model.padding + arrowPadding : x - textBlock.contentWidth - this.model.padding - arrowPadding;
+            textBlock.Y = (directionY < 0) ? y - textBlock.contentHeight - this.model.padding: textBlock.Y = y + this.model.padding;
+        }
     }
     refresh() {
         let points1 = [];
@@ -750,6 +831,92 @@ class ConnectorLine {
         this.endPoint.Y = points2[bestJ].y;
         this.endPoint.setDirectionX(points2[bestJ].directionX);
         this.endPoint.setDirectionY(points2[bestJ].directionY);
+
+        let l = Math.sqrt((this.line.X1 - this.line.X2) * (this.line.X1 - this.line.X2) + (this.line.Y1 - this.line.Y2) * (this.line.Y1 - this.line.Y2));
+        let a_rad = Math.atan2(this.line.Y2 - this.line.Y1, this.line.X2 - this.line.X1);        
+
+        if (this.textBlockBottom != null) {
+            let a = a_rad * 180 / Math.PI;
+            if (!this.textBlockBottom.IsInitialized)
+                this.textBlockBottom.init(this.svg, this.model);
+
+            let dx = this.line.X1 - this.textBlockBottom.X;
+            let dy = this.line.Y1 - this.textBlockBottom.Y;
+
+            if (this.textBlockBottom.contentWidth < l) {
+                let p = (l - this.textBlockBottom.contentWidth) / (2 * l);
+                let xt = 0;
+                let yt = 0;
+                if ((a > 90) || (a < -90)) {
+                    xt = this.line.X2 + (this.line.X1 - this.line.X2) * p;
+                    yt = this.line.Y2 + (this.line.Y1 - this.line.Y2) * p;
+                    a = a + 180;
+                } else {
+                    xt = this.line.X1 + (this.line.X2 - this.line.X1) * p;
+                    yt = this.line.Y1 + (this.line.Y2 - this.line.Y1) * p;
+                }
+                dx = xt - this.textBlockBottom.X;
+                dy = yt - this.textBlockBottom.Y;
+            }
+            this.textBlockBottom.moveXY(dx, dy);
+            this.textBlockBottom.setRotationAngle(a);
+        }
+
+        if (this.textBlockTop != null) {
+            let a = a_rad * 180 / Math.PI;
+            if (!this.textBlockTop.IsInitialized)
+                this.textBlockTop.init(this.svg, this.model);
+
+            let dx = this.line.X1 - this.textBlockTop.X;
+            let dy = this.line.Y1 - this.textBlockTop.Y;
+
+            if (this.textBlockTop.contentWidth < l) {
+                let p = (l - this.textBlockTop.contentWidth) / (2 * l);
+                let xt = 0;
+                let yt = 0;
+                
+                if ((a > 90) || (a < -90)) {
+                    xt = this.line.X2 + (this.line.X1 - this.line.X2) * p + Math.sin(a_rad + Math.PI) * (this.textBlockTop.contentHeight + model.padding);
+                    yt = this.line.Y2 + (this.line.Y1 - this.line.Y2) * p - Math.cos(a_rad + Math.PI) * (this.textBlockTop.contentHeight + model.padding);
+                    a = a + 180;
+                } else {
+                    xt = this.line.X1 + (this.line.X2 - this.line.X1) * p + Math.sin(a_rad) * (this.textBlockTop.contentHeight + model.padding);
+                    yt = this.line.Y1 + (this.line.Y2 - this.line.Y1) * p - Math.cos(a_rad) * (this.textBlockTop.contentHeight + model.padding);
+                }
+                dx = xt - this.textBlockTop.X;
+                dy = yt - this.textBlockTop.Y;
+            }
+            this.textBlockTop.moveXY(dx, dy);
+            this.textBlockTop.setRotationAngle(a);
+        }
+
+        if (this.textBlockBegin != null) {
+            if (!this.textBlockBegin.IsInitialized)
+                this.textBlockBegin.init(this.svg, this.model);
+            this.#horizontalTextBlockSetPosition(this.textBlockBegin,
+                points1[bestI].x,
+                points1[bestI].y,
+                points1[bestI].directionX,
+                points1[bestI].directionY,
+                points2[bestJ].x + points2[bestJ].directionX,
+                points2[bestJ].y + points2[bestJ].directionY,
+                0
+            );
+        }
+
+        if (this.textBlockEnd != null) {
+            if (!this.textBlockEnd.IsInitialized)
+                this.textBlockEnd.init(this.svg, this.model);
+            this.#horizontalTextBlockSetPosition(this.textBlockEnd,
+                points2[bestJ].x,
+                points2[bestJ].y,
+                points2[bestJ].directionX,
+                points2[bestJ].directionY,
+                points1[bestI].x + points1[bestI].directionX,
+                points1[bestI].y + points1[bestI].directionY,
+                4
+            );
+        }
     }
     dispose() {
         this.relObject1.removeConnector(this);
@@ -757,7 +924,11 @@ class ConnectorLine {
             this.relObject2.removeConnector(this);
         this.line.dispose();
         if (this.lineHead1 != null) this.lineHead1.dispose();
-        if (this.endPoint != null) this.endPoint.dispose();        
+        if (this.endPoint != null) this.endPoint.dispose();
+        if (this.textBlockBottom != null) this.textBlockBottom.dispose();
+        if (this.textBlockTop != null) this.textBlockTop.dispose();
+        if (this.textBlockBegin != null) this.textBlockBegin.dispose();
+        if (this.textBlockEnd != null) this.textBlockEnd.dispose();
     }
 }
 
@@ -1108,11 +1279,13 @@ class EndpointSimpleLine extends BaseFigure {
     directionX;
     directionY;
     line_base;
+    isDashed;
     static StaticConstructor(directionX, directionY) {
         return new EndpointSimpleLine(directionX, directionY);
     }
     constructor(directionX, directionY) {
         super();
+        this.isDashed = false;
         this.directionX = directionX;
         this.directionY = directionY;
     }
@@ -1230,6 +1403,127 @@ class EndpointArrow extends EndpointSimpleLine {
     }
 }
 
+class EndpointInheritance extends EndpointSimpleLine {
+    polygon;    
+    static StaticConstructor(directionX, directionY) {
+        return new EndpointInheritance(directionX, directionY);
+    }
+    constructor(directionX, directionY) {
+        super(directionX, directionY);
+        this.polygon = null;
+    }
+    init(svg, model) {
+        this.polygon = BaseScalableFigure.createPolygon(svg);
+        this.polygon.setAttribute("fill", "white");
+        super.init(svg, model);
+    }
+    refresh() {
+        super.refresh();
+        let points = [];
+        points.push([this.X, this.Y]);
+
+        if (this.directionY == 0) {
+            points.push([this.X + this.directionX * 0.9, this.Y + 5]);
+            points.push([this.X + this.directionX * 0.9, this.Y - 5]);
+        } else {
+            points.push([this.X + 5, this.Y + this.directionY * 0.9]);
+            points.push([this.X - 5, this.Y + this.directionY * 0.9]);
+        }
+        BaseScalableFigure.setupPolygon(this.polygon, points);
+
+        this.line_base.X1 = this.X + this.directionX * 0.9;
+        this.line_base.Y1 = this.Y + this.directionY * 0.9;
+        this.line_base.X2 = this.X + this.directionX;
+        this.line_base.Y2 = this.Y + this.directionY;
+    }
+    positionChanged(dx, dy) {
+        super.positionChanged(dx, dy);
+        this.refresh();
+    }
+    dispose() {
+        super.dispose();
+        this.svg.removeChild(this.polygon);
+    }
+}
+
+class EndpointImplementation extends EndpointInheritance {
+    static StaticConstructor(directionX, directionY) {
+        return new EndpointImplementation(directionX, directionY);
+    }
+    constructor(directionX, directionY) {
+        super(directionX, directionY);
+        this.isDashed = true;
+    }
+}
+
+class EndpointDependancy extends EndpointArrow {
+    static StaticConstructor(directionX, directionY) {
+        return new EndpointDependancy(directionX, directionY);
+    }
+    constructor(directionX, directionY) {
+        super(directionX, directionY);
+        this.isDashed = true;
+    }
+}
+
+class EndpointAggregation extends EndpointSimpleLine {
+    polygon;
+    static StaticConstructor(directionX, directionY) {
+        return new EndpointAggregation(directionX, directionY);
+    }
+    constructor(directionX, directionY) {
+        super(directionX, directionY);
+        this.polygon = null;
+    }
+    init(svg, model) {
+        this.polygon = BaseScalableFigure.createPolygon(svg);
+        this.polygon.setAttribute("fill", "white");
+        super.init(svg, model);
+    }
+    refresh() {
+        super.refresh();
+        let points = [];
+        points.push([this.X, this.Y]);
+
+        if (this.directionY == 0) {
+            points.push([this.X + this.directionX * 0.5, this.Y + 5]);
+            points.push([this.X + this.directionX, this.Y]);
+            points.push([this.X + this.directionX * 0.5, this.Y - 5]);
+        } else {
+            points.push([this.X + 5, this.Y + this.directionY * 0.5]);
+            points.push([this.X, this.Y + this.directionY]);
+            points.push([this.X - 5, this.Y + this.directionY * 0.5]);
+        }
+        BaseScalableFigure.setupPolygon(this.polygon, points);
+
+        this.line_base.X1 = this.X + this.directionX * 0.9;
+        this.line_base.Y1 = this.Y + this.directionY * 0.9;
+        this.line_base.X2 = this.X + this.directionX;
+        this.line_base.Y2 = this.Y + this.directionY;
+    }
+    positionChanged(dx, dy) {
+        super.positionChanged(dx, dy);
+        this.refresh();
+    }
+    dispose() {
+        super.dispose();
+        this.svg.removeChild(this.polygon);
+    }
+}
+
+class EndpointComposition extends EndpointAggregation {
+    static StaticConstructor(directionX, directionY) {
+        return new EndpointComposition(directionX, directionY);
+    }
+    constructor(directionX, directionY) {
+        super(directionX, directionY);        
+    }
+    init(svg, model) {
+        super.init(svg, model);
+        this.polygon.setAttribute("fill", "black");
+    }
+}
+
 class ScalableRectangle extends BaseFigure {
     svg;
     model;
@@ -1243,6 +1537,7 @@ class ScalableRectangle extends BaseFigure {
     #topConnector;
     #bottomConnector;
     connectionPoints;
+    autoSize;
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo(
             "ScalableRectangle",
@@ -1272,6 +1567,7 @@ class ScalableRectangle extends BaseFigure {
         this.#isResizeActive = false;
         this.#selected = false;
         this.connectionPoints = [];
+        this.autoSize = false;
     }
     getConnectionPoints() {
         return this.connectionPoints;
@@ -1360,7 +1656,7 @@ class ScalableRectangle extends BaseFigure {
         this.prevX = x;
         this.prevY = y;
         if (this.isInConnectionPoint(x, y)) return new GetConnectionObjectResult(Statuses.DrawConnector, this, this.getNearestConnectionPointIndex(x, y));
-        if (this.#resizeCircle.IsPointInMe(x, y)) {
+        if ((!this.autoSize) && this.#resizeCircle.IsPointInMe(x, y)) {
             this.#isResizeActive = true;
             this.status = Statuses.CustomMove;
             return new GetConnectionObjectResult(Statuses.CustomMove, null);
@@ -1399,7 +1695,7 @@ class ScalableRectangle extends BaseFigure {
             this.#selected = val;
             if (this.#selected) {
                 this.svg_object.setAttributeNS(null, 'stroke-width', 2);
-                this.#resizeCircle.isVisible = true;
+                this.#resizeCircle.isVisible = true && (!this.autoSize);
                 this.#topConnector.isVisible = true;
                 this.#bottomConnector.isVisible = true;
                 this.#leftConnector.isVisible = true;
@@ -1548,6 +1844,11 @@ class BaseScalableFigure extends CommentObject {
         svg.appendChild(circle);
         return circle;
     }
+    static setupCircle(circle, x, y, r) {
+        circle.setAttribute("cx", x);
+        circle.setAttribute("cy", y);
+        circle.setAttribute("r", r);
+    }
     static createPolygon(svg) {
         let polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
         polygon.setAttribute("stroke", "black");
@@ -1562,10 +1863,19 @@ class BaseScalableFigure extends CommentObject {
             res.push(tmp[0] + ',' + tmp[1]);
         polygon.setAttribute("points", res.join(' '));
     }
-    static setupCircle(circle, x, y, r) {
-        circle.setAttribute("cx", x);
-        circle.setAttribute("cy", y);
-        circle.setAttribute("r", r);
+    static createElipse(svg) {
+        let ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+        BaseScalableFigure.setupEllipse(ellipse, 0, 0, 0, 0);
+        ellipse.setAttribute("stroke", "black");
+        ellipse.setAttribute("fill", "none");
+        svg.appendChild(ellipse);
+        return ellipse;
+    }
+    static setupEllipse(ellipse, x, y, rx, ry) {
+        ellipse.setAttribute("cx", x);
+        ellipse.setAttribute("cy", y);
+        ellipse.setAttribute("rx", rx);
+        ellipse.setAttribute("ry", ry);
     }
     constructor(x, y, width, height) {
         super(x, y, width, height);
@@ -1678,13 +1988,14 @@ class IfThenObject extends BaseScalableFigure {
             function (x, y, width, height) { return new IfThenObject(x, y, width, height); },
             function (parent) {
                 let objects = IfThenObject.createInnerObjects(parent);
-                IfThenObject.refreshObjectCoordinates(7, 2, 30, 30, objects);
+                IfThenObject.refreshObjectCoordinates(7, 5, 30, 25, objects);
             }
         );
     }
     innerFigures;
     leftTextBlock;
     rightTextBlock;
+    bottomTextBlock;
     constructor(x, y, width, height) {
         super(x, y, width, height);
         this._verticalAlign = VerticalAlignTypes.Center;
@@ -1695,12 +2006,17 @@ class IfThenObject extends BaseScalableFigure {
         this.rightTextBlock = new TextBlock();
         this.rightTextBlock.setParent(this);
         this.addInnerObject(this.rightTextBlock);
+        this.bottomTextBlock = new TextBlock();
+        this.bottomTextBlock.setParent(this);
+        this.addInnerObject(this.bottomTextBlock);
+
     }
     rebuild() {
         super.rebuild();
         if (this.IsInitialized) {
             if (!this.leftTextBlock.IsInitialized) this.leftTextBlock.init(this.svg, this.model);
             if (!this.rightTextBlock.IsInitialized) this.rightTextBlock.init(this.svg, this.model);
+            if (!this.bottomTextBlock.IsInitialized) this.bottomTextBlock.init(this.svg, this.model);
 
             if (this.innerFigures == null)
                 this.innerFigures = IfThenObject.createInnerObjects(this.svg);
@@ -1716,12 +2032,16 @@ class IfThenObject extends BaseScalableFigure {
 
             this.leftTextBlock.X = this.X - this.leftTextBlock.contentWidth - 2 * this.model.padding;
             this.leftTextBlock.Y = this.Y + this.Height / 2 - this.leftTextBlock.contentHeight - 2 * this.model.padding;
+
+            this.bottomTextBlock.X = this.X + this.Width / 2 + this.model.padding;
+            this.bottomTextBlock.Y = this.Y + this.Height + this.model.padding;
         }
     }
     getPropertyTypes() {
         let arr = super.getPropertyTypes();
-        arr.push(new PropertyGridItem(this, "LeftText", "Left Text", PropertyTypes.MultilineString));
-        arr.push(new PropertyGridItem(this, "RightText", "Right Text", PropertyTypes.MultilineString));
+        arr.push(new PropertyGridItem(this, "LeftText", "Left Text", PropertyTypes.OneLineString));
+        arr.push(new PropertyGridItem(this, "RightText", "Right Text", PropertyTypes.OneLineString));
+        arr.push(new PropertyGridItem(this, "BottomText", "Bottom Text", PropertyTypes.OneLineString));
         return arr;
     }
     get LeftText() {
@@ -1738,14 +2058,104 @@ class IfThenObject extends BaseScalableFigure {
         this.rightTextBlock.Text = val;
         this.rebuild();
     }
+    get BottomText() {
+        return this.bottomTextBlock.Text;
+    }
+    set BottomText(val) {
+        this.bottomTextBlock.Text = val;
+        this.rebuild();
+    }
     serializeStateToObject(obj) {
         super.serializeStateToObject(obj);
+        obj.rightText = this.RightText;
+        obj.leftText = this.LeftText;
+        obj.bottomText = this.BottomText;
         obj.objectTypeName = this.constructor.name;
+    }
+    restoreStateFromObject(obj) {
+        super.restoreStateFromObject(obj);
+        if (obj.rightText != undefined) this.RightText = obj.rightText;
+        if (obj.leftText != undefined) this.LeftText = obj.leftText;
+        if (obj.bottomText != undefined) this.BottomText = obj.bottomText;
     }
     dispose() {
         super.dispose();
         let { polygon } = this.innerFigures;
         this.svg.removeChild(polygon);
+    }
+}
+
+class EllipseObject extends BaseScalableFigure {
+    static createInnerObjects(svg) {
+        let ellipse = BaseScalableFigure.createElipse(svg);
+        return { ellipse };
+    }
+    static refreshObjectCoordinates(x, y, width, height, objects) {
+        let { ellipse } = objects;
+        let medX = x + width / 2;
+        let medY = y + height / 2;
+        BaseScalableFigure.setupEllipse(ellipse, medX, medY, width / 2, height / 2);
+    }
+    static GetObjectTypeInfo() {
+        return new ObjectTypeInfo("EllipseObject",
+            "Ellipse",
+            function (x, y, width, height) { return new EllipseObject(x, y, width, height); },
+            function (parent) {
+                let objects = EllipseObject.createInnerObjects(parent);
+                EllipseObject.refreshObjectCoordinates(7, 5, 30, 20, objects);
+            }
+        );
+    }
+    innerFigures;
+    fillBlack;
+    constructor(x, y, width, height) {
+        super(x, y, width, height);
+        this.innerFigures = null;
+        this._verticalAlign = VerticalAlignTypes.Center;
+        this.fillBlack = false;
+    }
+    rebuild() {
+        super.rebuild();
+        if (this.IsInitialized) {
+            if (this.innerFigures == null)
+                this.innerFigures = EllipseObject.createInnerObjects(this.svg);
+            EllipseObject.refreshObjectCoordinates(
+                this.x,
+                this.y,
+                this.width,
+                this.height,
+                this.innerFigures);
+        }
+    }
+    get FillBlack() {
+        return this.fillBlack;
+    }
+    set FillBlack(val) {
+        this.fillBlack = val;
+        let { ellipse } = this.innerFigures;
+        if (val) 
+            ellipse.setAttribute("fill", "black");
+        else
+            ellipse.setAttribute("fill", "none");
+    }
+    getPropertyTypes() {
+        let arr = super.getPropertyTypes();
+        arr.push(new PropertyGridItem(this, "FillBlack", "Fill black", PropertyTypes.Boolean));
+        return arr;
+    }
+    serializeStateToObject(obj) {
+        super.serializeStateToObject(obj);
+        obj.fillBlack = this.fillBlack;
+        obj.objectTypeName = this.constructor.name;
+    }
+    restoreStateFromObject(obj) {
+        super.restoreStateFromObject(obj);
+        this.FillBlack = obj.fillBlack
+    }
+    dispose() {
+        super.dispose();
+        let { ellipse } = this.innerFigures;
+        this.svg.removeChild(ellipse);
     }
 }
 
@@ -1817,6 +2227,10 @@ class Model {
             } else {
                 obj.relObject2_objectId = connector.relObject2.objectId;
             }
+            obj.textTop = connector.TextTop;
+            obj.textBottom = connector.TextBottom;
+            obj.textBegin = connector.TextBegin;
+            obj.textEnd = connector.TextEnd;
             connectors.push(obj);
         }
         return JSON.stringify({ objects: objects, connectors: connectors });
@@ -1868,11 +2282,16 @@ class Model {
             this.#Connectors.push(connector);
             connector.connect(relObject2);
             connector.pointIndex2 = con_obj.pointIndex2;
+            connector.TextTop = con_obj.textTop;
+            connector.TextBottom = con_obj.textBottom;
+            connector.TextBegin = con_obj.textBegin;
+            connector.TextEnd = con_obj.textEnd;
             connector.refresh();
             connector.currentEndpointType = con_obj.currentEndpointType;
         }
 
         this.objectIdIncremental = maxV + 1;
+        this.update_svg_size();
     }
     saveJson() {
         this.#save("file.json", this.getJsonData(), 'application/json', '.json', 'JSON-file');
@@ -2063,6 +2482,7 @@ class Model {
         close_button.innerText = "Close";
         close_button.addEventListener("click", () => {
             dialog_obj.close();
+            this.textEditModeOn = false;
         });
         div.appendChild(close_button);
 
@@ -2071,8 +2491,10 @@ class Model {
         ok_button.addEventListener("click", () => {
             okFunction(textarea.value);
             dialog_obj.close();
+            this.textEditModeOn = false;
         });
         div.appendChild(ok_button);
+        this.textEditModeOn = true;
         dialog_obj.showModal();
     }
     setupPropertyGrid(arr) {
@@ -2114,6 +2536,19 @@ class Model {
                     input.value = pitem.objectToSet[pitem.propertyName];
                     input.addEventListener('change', function () {
                         pitem.objectToSet[pitem.propertyName] = this.value;
+                    });
+                    break;
+                case PropertyTypes.Boolean:
+                    let input_bool = document.createElement("input");
+                    td.appendChild(input_bool);
+                    input_bool.setAttribute("type", "checkbox");
+                    if (pitem.objectToSet[pitem.propertyName])
+                        input_bool.setAttribute("checked", "checked");                    
+                    input_bool.addEventListener('change', function (e) {
+                        if (e.currentTarget.checked)
+                            pitem.objectToSet[pitem.propertyName] = true;
+                        else
+                            pitem.objectToSet[pitem.propertyName] = false;
                     });
                     break;
                 case PropertyTypes.Numbers:
@@ -2164,6 +2599,7 @@ class Model {
             if (this.#Status == Statuses.DrawConnector) {
                 this.#SelectedObject.drawTo(x, y);
             }
+            this.update_svg_size();
         }
     }
     mouse_up(e) {
@@ -2191,6 +2627,11 @@ class Model {
                         connector.refresh();
                         connector.objectId = this.objectIdIncremental++;
                         foundConnectedBlock = true;
+                        // reset selection of first object after connection is established
+                        if (connector.relObject1.parentObject != null)
+                            connector.relObject1.parentObject.IsSelected = false;
+                        else
+                            connector.relObject1.IsSelected = false;
                     }
                     obj.mouse_up(x, y);
                 }
@@ -2202,7 +2643,8 @@ class Model {
             if (!foundConnectedBlock) {
                 connector.dispose();
                 this.removeConnector(connector);
-            }
+                this.clearPropertyGrid();
+            } 
         }
 
         this.refreshPropertyGrid();
@@ -2211,6 +2653,18 @@ class Model {
             this.#SelectedObject.IsSelected = true;
         this.#Status = Statuses.None;
         //this.#SelectedObject = null;
+        this.update_svg_size();
+    }
+    update_svg_size() {
+        let wMax = 20;
+        let hMax = 20;
+        for (var i = 0; i < this.#Objects.length; i++) {
+            let obj = this.#Objects[i];
+            if (wMax < obj.x + obj.width) wMax = obj.x + obj.width;
+            if (hMax < obj.y + obj.height) hMax = obj.y + obj.height;
+        }
+        this.svg.setAttribute("width", Math.round(wMax + 40));
+        this.svg.setAttribute("height", Math.round(hMax + 40));
     }
     getFirstSelectedObjectOrConnector() {
         for (var i = 0; i < this.#Objects.length; i++)
@@ -2233,6 +2687,7 @@ class Model {
         this.#Objects.push(obj);
         obj.objectId = this.objectIdIncremental++;
         obj.init(this.svg, model);
+        this.update_svg_size();
     }
     registreObjectType(reg) {
         this.objectTypes.push(reg);
@@ -2299,7 +2754,9 @@ class Model {
             line.setAttributeNS(null, "y1", 15);
             line.setAttributeNS(null, "x2", 35);
             line.setAttributeNS(null, "y2", 15);
-            line.setAttribute("stroke", "black")
+            line.setAttribute("stroke", "black");
+            if (endpoint.isDashed)
+                line.setAttribute("stroke-dasharray", 4);
             svg.appendChild(line);
 
             let text = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -2359,10 +2816,21 @@ const EndpointActivators = [];
 EndpointActivators[EndpointTypes.SimpleLine] = EndpointSimpleLine.StaticConstructor;
 EndpointActivators[EndpointTypes.OneToMany] = EndpointOneToMany.StaticConstructor;
 EndpointActivators[EndpointTypes.Arrow] = EndpointArrow.StaticConstructor;
+EndpointActivators[EndpointTypes.Inheritance] = EndpointInheritance.StaticConstructor;
+EndpointActivators[EndpointTypes.Implementation] = EndpointImplementation.StaticConstructor;
+EndpointActivators[EndpointTypes.Dependancy] = EndpointDependancy.StaticConstructor;
+EndpointActivators[EndpointTypes.Aggregation] = EndpointAggregation.StaticConstructor;
+EndpointActivators[EndpointTypes.Composition] = EndpointComposition.StaticConstructor;
+
 
 const EndpointNames = [];
 EndpointNames[EndpointTypes.SimpleLine] = "Direct line";
 EndpointNames[EndpointTypes.OneToMany] = "One-to-many";
 EndpointNames[EndpointTypes.Arrow] = "Arrow";
+EndpointNames[EndpointTypes.Inheritance] = "Inheritance";
+EndpointNames[EndpointTypes.Implementation] = "Implementation";
+EndpointNames[EndpointTypes.EndpointDependancy] = "Dependancy";
+EndpointNames[EndpointTypes.Aggregation] = "Aggregation";
+EndpointNames[EndpointTypes.Composition] = "Composition";
 
 

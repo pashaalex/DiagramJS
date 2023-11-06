@@ -153,7 +153,6 @@
     </div>
     <div id="dialogs"></div>
     <script type="text/javascript">
-	
 const Statuses = {
     None: 0,
     CustomMove: 1,
@@ -507,6 +506,7 @@ class BaseLine {
     #selected;
     isDisposed;
     _isDashed;
+    _strokeWidth;
     constructor() {
         this.IsInitialized = false;
         this.lineId = BaseLine.globalLineId++;
@@ -517,6 +517,7 @@ class BaseLine {
         this.y1 = 0;
         this.x2 = 0;
         this.y2 = 0;
+        this._strokeWidth = 1;
     }
     init(svg) {
         this.svg = svg;
@@ -547,9 +548,18 @@ class BaseLine {
         if (val != this.#selected) {
             this.#selected = val;
             if (this.#selected)
-                this.#svg_object.setAttributeNS(null, 'stroke-width', 2);
+                this.#svg_object.setAttributeNS(null, 'stroke-width', this._strokeWidth + 1);
             else
-                this.#svg_object.setAttributeNS(null, 'stroke-width', 1);
+                this.#svg_object.setAttributeNS(null, 'stroke-width', this._strokeWidth);
+        }
+    }
+    get StrokeWidth() {
+        return this._strokeWidth;
+    }
+    set StrokeWidth(val) {
+        if ((val > 0) && (val < 100)) {
+            this._strokeWidth = val;
+            this.#svg_object.setAttributeNS(null, 'stroke-width', this._strokeWidth);
         }
     }
     IsPointNear(x, y) {
@@ -1163,8 +1173,15 @@ class LineObject extends BaseFigure {
         arr.push(new PropertyGridItem(this, "Y1", "Y1", PropertyTypes.Numbers));
         arr.push(new PropertyGridItem(this, "X2", "X2", PropertyTypes.Numbers));
         arr.push(new PropertyGridItem(this, "Y2", "Y2", PropertyTypes.Numbers));
+        arr.push(new PropertyGridItem(this, "StrokeWidth", "Stroke width", PropertyTypes.Numbers));
         arr.push(new PropertyGridItem(this, "Text", "Text", PropertyTypes.MultilineString));
         return arr;
+    }
+    get StrokeWidth() {
+        return this.baseLine.StrokeWidth;
+    }
+    set StrokeWidth(val) {
+        this.baseLine.StrokeWidth = val;
     }
     get Text() {
         return this.innerTextBlock.Text;
@@ -1255,7 +1272,11 @@ class LineObject extends BaseFigure {
             }
             this.innerTextBlock.moveXY(dx, dy);
             this.innerTextBlock.setRotationAngle(a);
-        }
+            this.width = Math.abs(this.X1 - this.X2);
+            this.height = Math.abs(this.Y1 - this.Y2);
+            this.x = Math.min(this.X1, this.X2);
+            this.y = Math.min(this.Y1, this.Y2);
+        }        
     }
     moveXY(dx, dy) {
         this.baseLine.moveXY(dx, dy);
@@ -2033,6 +2054,21 @@ class BaseScalableFigure extends CommentObject {
         ellipse.setAttribute("rx", rx);
         ellipse.setAttribute("ry", ry);
     }
+    static createRectangle(svg) {
+        let rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        BaseScalableFigure.setupRectangle(rect, 0, 0, 0, 0);
+        rect.setAttributeNS(null, 'fill', "none");
+        rect.setAttributeNS(null, 'stroke', "black");
+        rect.setAttributeNS(null, 'stroke-width', 1);
+        svg.appendChild(rect);
+        return rect;
+    }
+    static setupRectangle(rect, x, y, width, height) {
+        rect.setAttribute("x", x);
+        rect.setAttribute("y", y);
+        rect.setAttribute("width", width);
+        rect.setAttribute("height", height);
+    }
     constructor(x, y, width, height) {
         super(x, y, width, height);
         this._verticalAlign = VerticalAlignTypes.Under;
@@ -2086,7 +2122,10 @@ class UMLUserObject extends BaseScalableFigure {
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo("UMLUserObject",
             "User",
-            function (x, y, width, height) { return new UMLUserObject(x, y, width, height); },
+            function (x, y, width, height) {
+                // height x height (!!!) width is ignored for this figure
+                return new UMLUserObject(x, y, height, height);
+            },
             function (parent) {
                 let objects = UMLUserObject.createInnerObjects(parent);
                 UMLUserObject.refreshObjectCoordinates(7, 2, 30, 30, objects);
@@ -2315,6 +2354,78 @@ class EllipseObject extends BaseScalableFigure {
     }
 }
 
+class DatabaseObject extends BaseScalableFigure {
+    static createInnerObjects(svg) {
+        let ellipseTop = BaseScalableFigure.createElipse(svg);
+        ellipseTop.setAttributeNS(null, 'fill', "white");
+        let rect = BaseScalableFigure.createRectangle(svg);
+        rect.setAttributeNS(null, 'fill', "white");
+        rect.setAttributeNS(null, 'stroke', "black");
+        rect.setAttributeNS(null, 'stroke-width', 1);
+        let ellipseBottom = BaseScalableFigure.createElipse(svg);
+        ellipseBottom.setAttributeNS(null, 'fill', "white");
+
+        let whiteRectangle = BaseScalableFigure.createRectangle(svg);
+        whiteRectangle.setAttributeNS(null, 'fill', "white");
+        whiteRectangle.setAttributeNS(null, 'stroke', "white");
+        whiteRectangle.setAttributeNS(null, 'stroke-width', 0);
+        return { ellipseTop, rect, ellipseBottom, whiteRectangle };
+    }
+    static refreshObjectCoordinates(x, y, width, height, objects) {
+        let { ellipseTop, rect, ellipseBottom, whiteRectangle } = objects;
+        let medX = x + width / 2;
+        let ry = height / 8;
+        BaseScalableFigure.setupEllipse(ellipseBottom, medX, y + ry, width / 2, ry);
+        BaseScalableFigure.setupRectangle(rect, x, y + ry, width, height - 2 * ry);
+        BaseScalableFigure.setupEllipse(ellipseTop, medX, y + height - ry, width / 2, ry);
+        BaseScalableFigure.setupRectangle(whiteRectangle, x + 1, y + height - ry - 2, width-2, 4);
+    }
+    static GetObjectTypeInfo() {
+        return new ObjectTypeInfo("DatabaseObject",
+            "Database",
+            function (x, y, width, height) { return new DatabaseObject(x, y, width, height); },
+            function (parent) {
+                let objects = DatabaseObject.createInnerObjects(parent);
+                DatabaseObject.refreshObjectCoordinates(7, 5, 30, 20, objects);
+            }
+        );
+    }
+    innerFigures;
+    fillBlack;
+    constructor(x, y, width, height) {
+        super(x, y, width, height);
+        this.innerFigures = null;        
+    }
+    rebuild() {
+        super.rebuild();
+        if (this.IsInitialized) {
+            if (this.innerFigures == null)
+                this.innerFigures = DatabaseObject.createInnerObjects(this.svg);
+            DatabaseObject.refreshObjectCoordinates(
+                this.x + this.model.padding,
+                this.y + this.model.padding,
+                this.width - 2 * this.model.padding,
+                this.height - 2 * this.model.padding,
+                this.innerFigures);
+        }
+    }
+    get FillBlack() {
+        return this.fillBlack;
+    }
+    serializeStateToObject(obj) {
+        super.serializeStateToObject(obj);
+        obj.objectTypeName = this.constructor.name;
+    }
+    dispose() {
+        super.dispose();
+        let { ellipseTop, rect, ellipseBottom, whiteRectangle } = this.innerFigures;
+        this.svg.removeChild(ellipseTop);
+        this.svg.removeChild(ellipseBottom);
+        this.svg.removeChild(rect);
+        this.svg.removeChild(whiteRectangle);
+    }
+}
+
 class Model {
     #Status;
     #Objects;
@@ -2346,6 +2457,7 @@ class Model {
         svg.addEventListener("mousedown", function (e) { model.mouse_down(e); });
         svg.addEventListener("mouseup", function (e) { model.mouse_up(e); });
         svg.addEventListener("mousemove", function (e) { model.mouse_move(e); });
+        svg.addEventListener("mouseleave", function (e) { model.mouse_leave(e); });
         svg.addEventListener("dblclick", function (e) { model.double_click(e); });
         document.addEventListener('keydown', function (e) { model.key_up(e); }, false);
         this.#Status = Statuses.None;
@@ -2558,62 +2670,6 @@ class Model {
             }
         }
     }
-    mouse_down(e) {
-        this.#SelectedObject = null;
-        let { x, y } = this.getMousePos(this.svg, e);
-        for (var i = 0; i < this.#Objects.length; i++)
-            this.#Objects[i].IsSelected = false;
-        for (var i = 0; i < this.#Connectors.length; i++)
-            this.#Connectors[i].IsSelected = false;
-
-        for (var i = 0; i < this.#Objects.length; i++) {
-            let obj = this.#Objects[i];
-            let click_obj_status = obj.mouse_down(x, y);
-            if (click_obj_status.status == Statuses.None) continue;
-            if (click_obj_status.status == Statuses.CustomMove) {
-                obj.IsSelected = true;
-                this.#SelectedObject = obj;
-                this.#Status = Statuses.CustomMove;
-                break;
-            }
-            if (click_obj_status.status == Statuses.DrawConnector) {
-                this.#Status = Statuses.DrawConnector;
-                obj.IsSelected = true;
-                let connector = new ConnectorLine(click_obj_status.connectedObject);
-                connector.relObject1 = click_obj_status.objectForConnect;
-                connector.pointIndex1 = click_obj_status.connectionPointerIndex;
-                connector.init(this.svg, this);
-                this.#Connectors.push(connector);
-                this.#SelectedObject = connector;
-                break;
-            }
-            if (click_obj_status.status == Statuses.MoveMeAutomaticaly) {
-                obj.IsSelected = true;
-                this.#Status = Statuses.MoveMeAutomaticaly
-                this.#SelectedObject = obj;
-                this.prevX = x;
-                this.prevY = y;
-                break;
-            }
-        }
-
-        if (this.#Status == Statuses.None) {
-            for (var i = 0; i < this.#Connectors.length; i++) {
-                let connector = this.#Connectors[i];
-                if (connector.IsPointInMe(x, y)) {
-                    connector.IsSelected = true;
-                    this.#SelectedObject = connector;
-                    break;
-                }
-            }
-        }
-
-        if ((this.#SelectedObject != null) && (this.#SelectedObject.getPropertyTypes != undefined)) {
-            let arr = this.#SelectedObject.getPropertyTypes();
-            this.setupPropertyGrid(arr);
-        } else
-            this.clearPropertyGrid();
-    }
     clearPropertyGrid() {
         let gridDiv = document.getElementById("propertyGrid");
         gridDiv.style.display = "none";
@@ -2758,6 +2814,62 @@ class Model {
             this.update_svg_size();
         }
     }
+    mouse_down(e) {
+        this.#SelectedObject = null;
+        let { x, y } = this.getMousePos(this.svg, e);
+        for (var i = 0; i < this.#Objects.length; i++)
+            this.#Objects[i].IsSelected = false;
+        for (var i = 0; i < this.#Connectors.length; i++)
+            this.#Connectors[i].IsSelected = false;
+
+        for (var i = 0; i < this.#Objects.length; i++) {
+            let obj = this.#Objects[i];
+            let click_obj_status = obj.mouse_down(x, y);
+            if (click_obj_status.status == Statuses.None) continue;
+            if (click_obj_status.status == Statuses.CustomMove) {
+                obj.IsSelected = true;
+                this.#SelectedObject = obj;
+                this.#Status = Statuses.CustomMove;
+                break;
+            }
+            if (click_obj_status.status == Statuses.DrawConnector) {
+                this.#Status = Statuses.DrawConnector;
+                obj.IsSelected = true;
+                let connector = new ConnectorLine(click_obj_status.connectedObject);
+                connector.relObject1 = click_obj_status.objectForConnect;
+                connector.pointIndex1 = click_obj_status.connectionPointerIndex;
+                connector.init(this.svg, this);
+                this.#Connectors.push(connector);
+                this.#SelectedObject = connector;
+                break;
+            }
+            if (click_obj_status.status == Statuses.MoveMeAutomaticaly) {
+                obj.IsSelected = true;
+                this.#Status = Statuses.MoveMeAutomaticaly
+                this.#SelectedObject = obj;
+                this.prevX = x;
+                this.prevY = y;
+                break;
+            }
+        }
+
+        if (this.#Status == Statuses.None) {
+            for (var i = 0; i < this.#Connectors.length; i++) {
+                let connector = this.#Connectors[i];
+                if (connector.IsPointInMe(x, y)) {
+                    connector.IsSelected = true;
+                    this.#SelectedObject = connector;
+                    break;
+                }
+            }
+        }
+
+        if ((this.#SelectedObject != null) && (this.#SelectedObject.getPropertyTypes != undefined)) {
+            let arr = this.#SelectedObject.getPropertyTypes();
+            this.setupPropertyGrid(arr);
+        } else
+            this.clearPropertyGrid();
+    }
     mouse_up(e) {
         if (this.#Status == Statuses.DrawConnector) {            
             let { x, y } = this.getMousePos(this.svg, e);
@@ -2810,6 +2922,9 @@ class Model {
         this.#Status = Statuses.None;
         //this.#SelectedObject = null;
         this.update_svg_size();
+    }
+    mouse_leave(e) {
+        this.mouse_up(e);
     }
     update_svg_size() {
         let wMax = 20;
@@ -2947,6 +3062,7 @@ class Model {
                 model.add_object(t);
                 if (reg.postInitSetup != undefined)
                     reg.postInitSetup(t);
+                model.update_svg_size();
                 e.stopPropagation();
             });
             reg.objectDrawIcon(svg);
@@ -2988,7 +3104,6 @@ EndpointNames[EndpointTypes.Implementation] = "Implementation";
 EndpointNames[EndpointTypes.EndpointDependancy] = "Dependancy";
 EndpointNames[EndpointTypes.Aggregation] = "Aggregation";
 EndpointNames[EndpointTypes.Composition] = "Composition";
-
 
 
 class ERTableFieldName extends TextBlock {
@@ -3475,7 +3590,7 @@ class ClassObject extends CommentObject {
         model.registreObjectType(IfThenObject.GetObjectTypeInfo());
         model.registreObjectType(ClassObject.GetObjectTypeInfo());
         model.registreObjectType(EllipseObject.GetObjectTypeInfo());
-        
+        model.registreObjectType(DatabaseObject.GetObjectTypeInfo());        
         model.rebuild();
         let btn = document.querySelector("#btn");
         btn.addEventListener("click", function (e) {

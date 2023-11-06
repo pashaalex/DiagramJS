@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing Basics</title>
+    <style type="text/css">
+        body, html {
+            height: 100%;
+            margin: 0;
+        }
+        #svg {
+            border: 1px dashed rgba(0, 0, 0, .2);            
+        }
+        svg text {
+            pointer-events: visiblePainted;
+            cursor: default;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        dialog button {
+            margin : 3px;
+        }
+        dialog table button, dialog table input {
+            margin: 0px;
+            padding: 0px;
+        }
+        dialog table button {
+            padding: 0px 2px 0px 2px;
+        }
+        dialog table, dialog th, dialog td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        .svgContainer {
+            position: fixed;
+            top: 0px;
+            bottom: 50px;
+            left: 70px;
+            right: 90px;
+            overflow: auto;
+            border: 1px solid rgba(0, 0, 0, .2);
+        }
+        #leftMenu {
+            position: fixed;
+            left: 10px;
+            top: 10px;
+            box-shadow: 3px 3px 1px 1px rgba(0, 0, 0, .2);
+            background-color: white;
+        }
+            #leftMenu svg {
+                border: 1px solid black;
+                width: 46px;
+                height: 46px;
+                display: block;
+            }
+            #leftMenu div {
+                width: 46px;
+                height: 46px;
+                cursor: pointer;
+            }
+        .button {
+            position: relative;
+            top:400px;
+        }
+        #rightMenu {
+            position: fixed;
+            right: 10px;
+            top: 10px;            
+            background-color: white;
+            box-shadow: 3px 3px 1px 1px rgba(0, 0, 0, .2);
+        }
+            #rightMenu svg {
+                border: 1px solid black;
+                width: 64px;
+                height: 36px;
+                display: block;
+            }
+
+            #rightMenu div {
+                width: 64px;
+                height: 36px;
+                cursor: pointer;
+            }
+        #propertyGrid {
+            border: 1px solid black;
+            width: 300px;            
+            background-color: white;
+            position: absolute;
+            right: 0px;            
+            display: none;
+            bottom: 70px;
+        }
+            #propertyGrid table, #propertyGrid th, #propertyGrid td {
+                border: 1px solid black;
+                border-collapse: collapse;
+            }
+            #propertyGrid span {
+                display: inline-block;
+                width: 180px;
+                white-space: nowrap;
+                overflow: hidden !important;
+                text-overflow: ellipsis;
+            }
+        .main_menu_div {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 35px;
+            border: 1px solid black;
+            border-radius: 5px;
+            margin: 4px;
+            padding: 4px;
+            background-color: white;
+            display: inline-block;
+            box-shadow: 3px 3px 1px 1px rgba(0, 0, 0, .2);
+        }
+            .main_menu_div label, .main_menu_div button {
+                cursor: pointer;
+                border: 1px solid black;
+                border-radius: 5px;
+                margin: 4px;
+                padding: 4px;
+                background-color: white;
+                font-size: 14px;
+            }
+        .hidden_input {
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="svgContainer">
+        <div id="svg_div">
+            <svg id="svg" width="800" height="500"></svg>
+        </div>
+    </div>
+    <div id="propertyGrid"></div>
+    <div id="leftMenu"></div>
+    <div id="rightMenu"></div>
+    <div class="main_menu_div">
+        <button id="btn">Save SVG</button>
+        <button id="btn_save">Save JSON</button>
+        <label for="file_selector">Open JSON</label>
+        <input type="file" id="file_selector" class="hidden_input" />
+    </div>
+    <div id="dialogs"></div>
+
+
+    <script src="minidraw.core.js"></script>
+    <script src="minidraw.erdiagram.js"></script>
+    <script src="minidraw.classdiagram.js"></script>    
+    <script type="text/javascript">
+        let model = new Model(document.querySelector("#svg"), document.querySelector("#dialogs"));
+        model.registreObjectType(ERTableObject.GetObjectTypeInfo());
+        model.registreObjectType(CommentObject.GetObjectTypeInfo());
+        model.registreObjectType(LineObject.GetObjectTypeInfo());
+        model.registreObjectType(LineArrowObject.GetObjectTypeInfo());
+        model.registreObjectType(UMLUserObject.GetObjectTypeInfo());
+        model.registreObjectType(IfThenObject.GetObjectTypeInfo());
+        model.registreObjectType(ClassObject.GetObjectTypeInfo());
+        model.registreObjectType(EllipseObject.GetObjectTypeInfo());
+        model.registreObjectType(DatabaseObject.GetObjectTypeInfo());        
+        model.rebuild();
+        let btn = document.querySelector("#btn");
+        btn.addEventListener("click", function (e) {
+            model.getSvgFile();
+        });
+        document.querySelector("#btn_save").addEventListener("click", function (e) {
+            model.saveJson();
+        });
+
+        if (window.FileList && window.File && window.FileReader) {
+            document.getElementById('file_selector').addEventListener('change', event => {
+                const file = event.target.files[0];
+                const reader = new FileReader();
+                reader.addEventListener('load', event => {
+                    model.loadFromJson(event.target.result);
+                });
+                reader.readAsText(file);
+            });
+        }
+    </script>
+</body>
+</html>

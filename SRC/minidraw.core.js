@@ -29,7 +29,8 @@ const PropertyTypes = {
     MultilineString: 1,
     Enum: 2,
     Numbers: 3,
-    Boolean: 4
+    Boolean: 4,
+    Color: 5
 }
 
 class GetConnectionObjectResult {
@@ -257,6 +258,9 @@ class BaseFigure extends BaseRectangle {
     addInnerObject(obj) {
         this._innerObjects.push(obj);
     }
+    removeInnerObject(obj) {
+        this.removeItemFromArray(obj, this._innerObjects);
+    }
     dispose() {
         if ((this.svg_object != null) && (this.svg_object != undefined))
             this.svg.removeChild(this.svg_object);
@@ -274,19 +278,19 @@ class BaseFigure extends BaseRectangle {
 class PointerCircle extends BaseFigure {
     radius;
     opacityString;
-    cursorString;
+    cursorString;    
     constructor(parent, parentUpdatePosition) {
         super();
         this.x = 0;
         this.y = 0;
         this.radius = 5;
         this.opacityString = ".25";
-        this.cursorString = "default";
+        this.cursorString = "default";        
         this.setParent(parent);
         this.parentUpdatePosition = parentUpdatePosition;
         this.init(parent.svg, parent.model);
         this.isVisible = false;
-        this.parentUpdatePosition();
+        this.parentUpdatePosition();        
     }
     init(svg, model) {
         this.model = model;
@@ -294,10 +298,13 @@ class PointerCircle extends BaseFigure {
         this.svg_object = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         this.X = this.x;
         this.Y = this.y;
-        this.svg_object.setAttribute("r", this.radius);
+        this.svg_object.setAttribute("r", this.radius);        
         this.svg.appendChild(this.svg_object);
         this.IsInitialized = true;
         this.rebuild();
+    }
+    setFillColor(val) {
+        this.svg_object.setAttribute("fill", val);
     }
     IsPointInMe(x, y) {
         return Math.sqrt((x - this.x) * (x - this.x) + (y - this.y) * (y - this.y)) <= this.radius;
@@ -331,6 +338,10 @@ class ConnectionPointCircle extends PointerCircle { // realize ConnectionPoint
         super(parent, parentUpdatePosition);
         this.directionX = directionX;
         this.directionY = directionY;
+        this.setFillColor("green");
+        this.opacityString = ".5";
+        this.rebuild();
+        this.isVisible = false;
     }
     getDistance(p) {
         return Math.sqrt((p.x - this.x) * (p.x - this.x) + (p.y - this.y) * (p.y - this.y));
@@ -372,9 +383,15 @@ class BaseLine {
         this.Y1 = this.Y1;
         this.X2 = this.X2;
         this.Y2 = this.Y2;
-        this.#svg_object.setAttribute("stroke", "black");
+        this.#svg_object.setAttribute("stroke", "#000000");
         this.svg.appendChild(this.#svg_object);
         this.IsInitialized = true;
+    }
+    get LineColor() {
+        return this.#svg_object.getAttribute("stroke");
+    }
+    set LineColor(val) {
+        this.#svg_object.setAttribute("stroke", val);
     }
     get IsDashed() {
         return this._isDashed;
@@ -1003,10 +1020,17 @@ class LineObject extends BaseFigure {
             this.Y = this.parentObject.Y2;
         });
         this.addInnerObject(this.positionPoint2);
-
         this.IsInitialized = true;
         this.rebuild();
     }
+    get LineColor() {
+        return this.baseLine.LineColor;
+    }
+    set LineColor(val) {
+        this.baseLine.LineColor = val;
+        this.lineColorChanged(val);
+    }
+    lineColorChanged(newColor) { }
     isInPositionPoint(x, y) {
         if (this.positionPoint1.IsPointInMe(x, y)) return true;
         if (this.positionPoint2.IsPointInMe(x, y)) return true;
@@ -1020,6 +1044,7 @@ class LineObject extends BaseFigure {
         arr.push(new PropertyGridItem(this, "Y2", "Y2", PropertyTypes.Numbers));
         arr.push(new PropertyGridItem(this, "StrokeWidth", "Stroke width", PropertyTypes.Numbers));
         arr.push(new PropertyGridItem(this, "Text", "Text", PropertyTypes.MultilineString));
+        arr.push(new PropertyGridItem(this, "LineColor", "Line color", PropertyTypes.Color));
         return arr;
     }
     get StrokeWidth() {
@@ -1195,6 +1220,7 @@ class LineObject extends BaseFigure {
         obj.x2 = this.X2;
         obj.y2 = this.Y2;
         obj.text = this.Text;
+        obj.lineColor = this.LineColor;
         obj.objectTypeName = this.constructor.name;
     }
     restoreStateFromObject(obj) {
@@ -1203,6 +1229,7 @@ class LineObject extends BaseFigure {
         this.Y1 = obj.y1;
         this.X2 = obj.x2;
         this.Y2 = obj.y2;
+        this.LineColor = obj.lineColor;
         if (obj.text != undefined) this.Text = obj.text;
     }
     dispose() {
@@ -1285,6 +1312,10 @@ class LineArrowObject extends LineObject {
             this.line2.X2 = this.X2 - r * Math.cos(a - da);
             this.line2.Y2 = this.Y2 - r * Math.sin(a - da);
         }
+    }
+    lineColorChanged(newColor) {
+        this.line1.LineColor = newColor;
+        this.line2.LineColor = newColor;
     }
     serializeStateToObject(obj) {
         super.serializeStateToObject(obj);
@@ -1560,6 +1591,8 @@ class ScalableRectangle extends BaseFigure {
     #bottomConnector;
     connectionPoints;
     autoSize;
+    _useFillColor;
+    _fillFigure;
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo(
             "ScalableRectangle",
@@ -1590,6 +1623,28 @@ class ScalableRectangle extends BaseFigure {
         this.#selected = false;
         this.connectionPoints = [];
         this.autoSize = false;
+        this._fillFigure = false;
+        this._fillColor = "#FFFFFF";
+    }
+    get FillColor() {
+        return this._fillColor;
+    }
+    set FillColor(val) {
+        this._fillColor = val;
+        this.fillColorChanged();
+    }
+    get FillFigure() {
+        return this._fillFigure;
+    }
+    set FillFigure(val) {
+        this._fillFigure = val;
+        this.fillColorChanged();
+    }
+    fillColorChanged() {
+        if (this._fillFigure)
+            this.svg_object.setAttributeNS(null, 'fill', this._fillColor);
+        else
+            this.svg_object.setAttributeNS(null, 'fill', "none");
     }
     getConnectionPoints() {
         return this.connectionPoints;
@@ -1614,6 +1669,8 @@ class ScalableRectangle extends BaseFigure {
         this.svg.appendChild(rect);
         this.svg_object = rect;
         this.IsInitialized = true;
+
+        this.rebuild();
 
         this.#resizeCircle = new PointerCircle(this, function () {
             this.X = this.parentObject.x + this.parentObject.width;
@@ -1764,6 +1821,14 @@ class CommentObject extends ScalableRectangle {
         this.addInnerObject(this.innerTextBlock);
         this._verticalAlign = VerticalAlignTypes.Center;
     }
+    reCreateTextBlockOnTop() {
+        let textBlock = this.removeInnerObject(this.innerTextBlock);
+        textBlock.dispose();
+        this.innerTextBlock = new TextBlock();
+        this.addInnerObject(this.innerTextBlock);
+        if ((this.svg != null) && (this.svg != undefined))
+            this.innerTextBlock.init(this.svg, this.model);
+    }
     rebuild() {
         if (this.IsInitialized) {
             if (!this.innerTextBlock.IsInitialized) {
@@ -1797,6 +1862,8 @@ class CommentObject extends ScalableRectangle {
         arr.push(new PropertyGridItem(this, "Height", "Height", PropertyTypes.Numbers));
         arr.push(new PropertyGridItem(this, "verticalAlign", "Vertical align", PropertyTypes.Enum, VerticalAlignTypes));
         arr.push(new PropertyGridItem(this, "Text", "Text", PropertyTypes.MultilineString));
+        arr.push(new PropertyGridItem(this, "FillColor", "Fill  color", PropertyTypes.Color));
+        arr.push(new PropertyGridItem(this, "FillFigure", "Fill figure", PropertyTypes.Boolean));
         return arr;
     }
     get verticalAlign() {
@@ -1832,7 +1899,10 @@ class CommentObject extends ScalableRectangle {
         obj.width = this.width;
         obj.height = this.height;
         obj.text = this.Text;
+        obj.fillColor = this.FillColor;
+        obj.fillFigure = this.FillFigure;
         obj.objectTypeName = this.constructor.name;
+        
     }
     restoreStateFromObject(obj) {
         this.objectId = obj.objectId;
@@ -1840,6 +1910,8 @@ class CommentObject extends ScalableRectangle {
         this.Y = obj.y;
         this.Width = obj.width;
         this.Height = obj.height;
+        this.FillColor = obj.fillColor;
+        this.FillFigure = obj.fillFigure;
         if (obj.text != undefined) this.Text = obj.text;
     }
 }
@@ -1964,6 +2036,13 @@ class UMLUserObject extends BaseScalableFigure {
         BaseScalableFigure.setupLine(rightLeg, medX, tazPoint, x + width, y + height);
         BaseScalableFigure.setupLine(hands, x, y + 3 * height / 8, x + width, y + 3 * height / 8);
     }
+    fillColorChanged() {
+        let { head, spine, leftLeg, rightLeg, hands } = this.innerFigures;
+        if (this._fillFigure)
+            head.setAttributeNS(null, 'fill', this._fillColor);
+        else
+            head.setAttributeNS(null, 'fill', "none");
+    }
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo("UMLUserObject",
             "User",
@@ -2051,15 +2130,16 @@ class IfThenObject extends BaseScalableFigure {
         this.addInnerObject(this.bottomTextBlock);
 
     }
-    rebuild() {
-        super.rebuild();
+    rebuild() {        
         if (this.IsInitialized) {
             if (!this.leftTextBlock.IsInitialized) this.leftTextBlock.init(this.svg, this.model);
             if (!this.rightTextBlock.IsInitialized) this.rightTextBlock.init(this.svg, this.model);
             if (!this.bottomTextBlock.IsInitialized) this.bottomTextBlock.init(this.svg, this.model);
 
-            if (this.innerFigures == null)
+            if (this.innerFigures == null) {
                 this.innerFigures = IfThenObject.createInnerObjects(this.svg);
+
+            }
             IfThenObject.refreshObjectCoordinates(
                 this.x,
                 this.y,
@@ -2076,6 +2156,14 @@ class IfThenObject extends BaseScalableFigure {
             this.bottomTextBlock.X = this.X + this.Width / 2 + this.model.padding;
             this.bottomTextBlock.Y = this.Y + this.Height + this.model.padding;
         }
+        super.rebuild(); // super.rebuild  after all to ensure, that textBlock will be on top
+    }
+    fillColorChanged() {
+        let { polygon } = this.innerFigures;
+        if (this._fillFigure)
+            polygon.setAttributeNS(null, 'fill', this._fillColor);
+        else
+            polygon.setAttributeNS(null, 'fill', "none");
     }
     getPropertyTypes() {
         let arr = super.getPropertyTypes();
@@ -2155,7 +2243,6 @@ class EllipseObject extends BaseScalableFigure {
         this.fillBlack = false;
     }
     rebuild() {
-        super.rebuild();
         if (this.IsInitialized) {
             if (this.innerFigures == null)
                 this.innerFigures = EllipseObject.createInnerObjects(this.svg);
@@ -2166,31 +2253,22 @@ class EllipseObject extends BaseScalableFigure {
                 this.height,
                 this.innerFigures);
         }
+        super.rebuild(); // after all.To ensure that textblock is on top
     }
-    get FillBlack() {
-        return this.fillBlack;
-    }
-    set FillBlack(val) {
-        this.fillBlack = val;
+    fillColorChanged() {
         let { ellipse } = this.innerFigures;
-        if (val) 
-            ellipse.setAttribute("fill", "black");
+        if (this._fillFigure)
+            ellipse.setAttributeNS(null, 'fill', this._fillColor);
         else
-            ellipse.setAttribute("fill", "none");
+            ellipse.setAttributeNS(null, 'fill', "none");
     }
     getPropertyTypes() {
         let arr = super.getPropertyTypes();
-        arr.push(new PropertyGridItem(this, "FillBlack", "Fill black", PropertyTypes.Boolean));
         return arr;
     }
     serializeStateToObject(obj) {
         super.serializeStateToObject(obj);
-        obj.fillBlack = this.fillBlack;
         obj.objectTypeName = this.constructor.name;
-    }
-    restoreStateFromObject(obj) {
-        super.restoreStateFromObject(obj);
-        this.FillBlack = obj.fillBlack
     }
     dispose() {
         super.dispose();
@@ -2254,8 +2332,21 @@ class DatabaseObject extends BaseScalableFigure {
                 this.innerFigures);
         }
     }
-    get FillBlack() {
-        return this.fillBlack;
+    fillColorChanged() {
+        let { ellipseTop, rect, ellipseBottom, whiteRectangle } = this.innerFigures;
+        if (this._fillFigure) {
+            ellipseTop.setAttributeNS(null, 'fill', this._fillColor);
+            rect.setAttributeNS(null, 'fill', this._fillColor);
+            ellipseBottom.setAttributeNS(null, 'fill', this._fillColor);
+            whiteRectangle.setAttributeNS(null, 'fill', this._fillColor);
+        }
+        else {
+            ellipseTop.setAttributeNS(null, 'fill', "white");
+            rect.setAttributeNS(null, 'fill', "white");
+            ellipseBottom.setAttributeNS(null, 'fill', "white");
+            whiteRectangle.setAttributeNS(null, 'fill', "white");
+            whiteRectangle.setAttributeNS(null, 'stroke', "white");
+        }
     }
     serializeStateToObject(obj) {
         super.serializeStateToObject(obj);
@@ -2608,6 +2699,15 @@ class Model {
                             pitem.objectToSet[pitem.propertyName] = false;
                     });
                     break;
+                case PropertyTypes.Color:
+                    let input_color = document.createElement("input");
+                    td.appendChild(input_color);
+                    input_color.setAttribute("type", "color");
+                    input_color.value = pitem.objectToSet[pitem.propertyName];
+                    input_color.addEventListener('change', function (e) {
+                        pitem.objectToSet[pitem.propertyName] = this.value;
+                    });
+                    break;
                 case PropertyTypes.Numbers:
                     let input_number = document.createElement("input");
                     td.appendChild(input_number);
@@ -2938,7 +3038,6 @@ EndpointActivators[EndpointTypes.Implementation] = EndpointImplementation.Static
 EndpointActivators[EndpointTypes.Dependancy] = EndpointDependancy.StaticConstructor;
 EndpointActivators[EndpointTypes.Aggregation] = EndpointAggregation.StaticConstructor;
 EndpointActivators[EndpointTypes.Composition] = EndpointComposition.StaticConstructor;
-
 
 const EndpointNames = [];
 EndpointNames[EndpointTypes.SimpleLine] = "Direct line";

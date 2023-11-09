@@ -43,6 +43,8 @@ class ERTableObject extends BaseFigure {
     svg;
     model;
     childObjectIncremental;    
+    _useFillColor;
+    _fillFigure;
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo("ERTableObject", 
             "Table",
@@ -84,6 +86,8 @@ class ERTableObject extends BaseFigure {
         this.lines = [];
         this.connectors = [];
         this.header = new TextBlock();
+        this._fillFigure = false;
+        this._fillColor = "#FFFFFF";
     }
     init(svg, model) {
         this.model = model;
@@ -121,6 +125,32 @@ class ERTableObject extends BaseFigure {
                 return new GetConnectionObjectResult(Statuses.MoveMeAutomaticaly, null); 
         }
         return new GetConnectionObjectResult(Statuses.None, null); 
+    }
+    get FillColor() {
+        return this._fillColor;
+    }
+    set FillColor(val) {
+        this._fillColor = val;
+        this.fillColorChanged();
+    }
+    get FillFigure() {
+        return this._fillFigure;
+    }
+    set FillFigure(val) {
+        this._fillFigure = val;
+        this.fillColorChanged();
+    }
+    fillColorChanged() {
+        if (this._fillFigure)
+            this.svg_object.setAttributeNS(null, 'fill', this._fillColor);
+        else
+            this.svg_object.setAttributeNS(null, 'fill', "none");
+    }
+    getPropertyTypes() {
+        let arr = [];
+        arr.push(new PropertyGridItem(this, "FillColor", "Fill  color", PropertyTypes.Color));
+        arr.push(new PropertyGridItem(this, "FillFigure", "Fill figure", PropertyTypes.Boolean));
+        return arr;
     }
     getSecondObjectForConnect(x, y) {
         if ((this.IsPointInMe(x, y)) && (y > this.y + this.header.contentHeight)) {
@@ -251,7 +281,6 @@ class ERTableObject extends BaseFigure {
         return null;
     }
     rebuild() {
-        super.rebuild();
         if (this.IsInitialized) {
             this.header.Y = this.Y;
             this.header.X = this.X + this.model.padding;
@@ -287,6 +316,7 @@ class ERTableObject extends BaseFigure {
             // align middle
             this.header.X = this.X + (this.Width - this.header.contentWidth) / 2;
         }
+        super.rebuild();
     }    
     serializeStateToObject(obj) {
         obj.objectId = this.objectId;

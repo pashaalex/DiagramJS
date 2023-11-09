@@ -33,7 +33,6 @@
     constructor(x, y, width, height) {
         super(x, y, width, height);
         this._verticalAlign = VerticalAlignTypes.Top;
-        // this.autoSize = true;
         this.fieldsTextBlock = new TextBlock();
         this.methodsTextBlock = new TextBlock();
         this.line1 = new BaseLine();
@@ -41,13 +40,11 @@
         this.#preventInnerRebuild = false;
     }
     init(svg, model) {
+        super.init(svg, model);
         this.fieldsTextBlock.init(svg, model);
         this.fieldsTextBlock.setParent(this);
         this.methodsTextBlock.init(svg, model);
         this.methodsTextBlock.setParent(this);
-        this.line1.init(svg, model);
-        this.line2.init(svg, model);
-        super.init(svg, model);
     }
     serializeStateToObject(obj) {
         super.serializeStateToObject(obj);
@@ -72,6 +69,12 @@
             }
             this.minWidth = resWidth;
             this.minHeight = resHeight;
+
+            if (!this.line1.IsInitialized)
+                this.line1.init(svg, model);
+            if (!this.line2.IsInitialized)
+                this.line2.init(svg, model);
+            
 
             let verticalPadding = (this.Height - resHeight) / 4;
 
@@ -116,12 +119,6 @@
         arr.push(new PropertyGridItem(this, "Fields", "Fields", PropertyTypes.MultilineString));
         return arr;
     }
-    //get IsSelected() {
-    //    return super.IsSelected;
-    //}
-    //set IsSelected(val) {
-    //    super.IsSelected = val;
-    //}
     positionChanged(dx, dy) {
         super.positionChanged(dx, dy);
         this.rebuild();
@@ -130,7 +127,6 @@
         this.#preventInnerRebuild = true;
         super.sizeChanged();
         this.#preventInnerRebuild = false;
-        //this.rebuild();
     }
     dispose() {
         super.dispose();

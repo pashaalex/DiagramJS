@@ -178,7 +178,7 @@ class BaseFigure extends BaseRectangle {
     set X(val) {
         let prevX = this.x;
         this.x = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "x", val);
         this.positionChanged(this.x - prevX, 0);
     }
@@ -188,7 +188,7 @@ class BaseFigure extends BaseRectangle {
     set Y(val) {
         let prevY = this.y;
         this.y = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "y", val);
         this.positionChanged(0, this.y - prevY);
     }
@@ -197,7 +197,7 @@ class BaseFigure extends BaseRectangle {
     }
     set Width(val) {
         this.width = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "width", val);
         this.sizeChanged();
     }
@@ -206,7 +206,7 @@ class BaseFigure extends BaseRectangle {
     }
     set Height(val) {
         this.height = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "height", val);
         this.sizeChanged();
     }
@@ -262,7 +262,7 @@ class BaseFigure extends BaseRectangle {
         this.removeItemFromArray(obj, this._innerObjects);
     }
     dispose() {
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg.removeChild(this.svg_object);
 
         for (let i = 0; i < this.connectors.length; i++) {
@@ -530,7 +530,7 @@ class TextBlock extends BaseFigure {
             this.svg.removeChild(myforeign);
             this.model.textEditModeOn = false;
             if (this.parentObject != null) this.parentObject.rebuild();
-            if ((this.parentObject.model != undefined) && (this.parentObject.model != null)) {
+            if (this.parentObject.model != null) {
                 this.parentObject.model.refreshPropertyGrid();
             }
         }
@@ -716,7 +716,7 @@ class ConnectorLine {
         let bestI = 0;
         let bestV = -1;
         let points = this.relObject1.getConnectionPoints();
-        if ((this.pointIndex1 != undefined) && (this.pointIndex1 != null)) {
+        if (this.pointIndex1 != null) {
             bestI = this.pointIndex1;
         } else {
             for (let i = 0; i < points.length; i++) {
@@ -821,13 +821,13 @@ class ConnectorLine {
     }
     refresh() {
         let points1 = [];
-        if ((this.pointIndex1 != undefined) && (this.pointIndex1 != null))
+        if (this.pointIndex1 != null)
             points1.push(this.relObject1.getConnectionPoints()[this.pointIndex1]);
         else
             points1 = this.relObject1.getConnectionPoints();
 
         let points2 = [];
-        if ((this.pointIndex2 != undefined) && (this.pointIndex2 != null))
+        if (this.pointIndex2 != null)
             points2.push(this.relObject2.getConnectionPoints()[this.pointIndex2]);
         else
             points2 = this.relObject2.getConnectionPoints();
@@ -1230,7 +1230,7 @@ class LineObject extends BaseFigure {
         this.X2 = obj.x2;
         this.Y2 = obj.y2;
         this.LineColor = obj.lineColor;
-        if (obj.text != undefined) this.Text = obj.text;
+        if (obj.text != null) this.Text = obj.text;
     }
     dispose() {
         super.dispose();
@@ -1826,7 +1826,7 @@ class CommentObject extends ScalableRectangle {
         textBlock.dispose();
         this.innerTextBlock = new TextBlock();
         this.addInnerObject(this.innerTextBlock);
-        if ((this.svg != null) && (this.svg != undefined))
+        if (this.svg != null)
             this.innerTextBlock.init(this.svg, this.model);
     }
     rebuild() {
@@ -1912,7 +1912,7 @@ class CommentObject extends ScalableRectangle {
         this.Height = obj.height;
         this.FillColor = obj.fillColor;
         this.FillFigure = obj.fillFigure;
-        if (obj.text != undefined) this.Text = obj.text;
+        if (obj.text != null) this.Text = obj.text;
     }
 }
 
@@ -2202,9 +2202,9 @@ class IfThenObject extends BaseScalableFigure {
     }
     restoreStateFromObject(obj) {
         super.restoreStateFromObject(obj);
-        if (obj.rightText != undefined) this.RightText = obj.rightText;
-        if (obj.leftText != undefined) this.LeftText = obj.leftText;
-        if (obj.bottomText != undefined) this.BottomText = obj.bottomText;
+        if (obj.rightText != null) this.RightText = obj.rightText;
+        if (obj.leftText != null) this.LeftText = obj.leftText;
+        if (obj.bottomText != null) this.BottomText = obj.bottomText;
     }
     dispose() {
         super.dispose();
@@ -2405,7 +2405,7 @@ class Model {
     getJsonData() {
         let objects = [];
         for (var i = 0; i < this.#Objects.length; i++)
-            if (this.#Objects[i].serializeStateToObject != undefined) {
+            if (this.#Objects[i].serializeStateToObject != null) {
                 let obj = {};
                 this.#Objects[i].serializeStateToObject(obj);
                 objects.push(obj);
@@ -2418,14 +2418,14 @@ class Model {
             obj.pointIndex1 = connector.pointIndex1;
             obj.pointIndex2 = connector.pointIndex2;
 
-            if (connector.relObject1.childId != undefined) {
+            if (connector.relObject1.childId != null) {
                 obj.relObject1_objectId = connector.relObject1.parentObject.objectId;
                 obj.relObject1_childId = connector.relObject1.childId;
             } else {
                 obj.relObject1_objectId = connector.relObject1.objectId;
             }
 
-            if (connector.relObject2.childId != undefined) {
+            if (connector.relObject2.childId != null) {
                 obj.relObject2_objectId = connector.relObject2.parentObject.objectId;
                 obj.relObject2_childId = connector.relObject2.childId;
             } else {
@@ -2473,11 +2473,11 @@ class Model {
         for (let i = 0; i < dataObj.connectors.length; i++) {
             let con_obj = dataObj.connectors[i];
             let relObject1 = obj_dict[con_obj.relObject1_objectId];
-            if (con_obj.relObject1_childId != undefined)
+            if (con_obj.relObject1_childId != null)
                 relObject1 = relObject1.getChildObjectByChildId(con_obj.relObject1_childId);
 
             let relObject2 = obj_dict[con_obj.relObject2_objectId];
-            if (con_obj.relObject2_childId != undefined)
+            if (con_obj.relObject2_childId != null)
                 relObject2 = relObject2.getChildObjectByChildId(con_obj.relObject2_childId);
 
             let connector = new ConnectorLine(relObject1);            
@@ -2809,7 +2809,7 @@ class Model {
             }
         }
 
-        if ((this.#SelectedObject != null) && (this.#SelectedObject.getPropertyTypes != undefined)) {
+        if ((this.#SelectedObject != null) && (this.#SelectedObject.getPropertyTypes != null)) {
             let arr = this.#SelectedObject.getPropertyTypes();
             this.setupPropertyGrid(arr);
         } else
@@ -2892,9 +2892,9 @@ class Model {
         return null;
     }
     refreshPropertyGrid(sel_obj) {
-        if (sel_obj == undefined)
+        if (sel_obj == null)
             sel_obj = this.getFirstSelectedObjectOrConnector();
-        if ((sel_obj != null) && (sel_obj.getPropertyTypes != undefined)) {
+        if ((sel_obj != null) && (sel_obj.getPropertyTypes != null)) {
             let arr = sel_obj.getPropertyTypes();
             this.setupPropertyGrid(arr);
         } 
@@ -3005,7 +3005,7 @@ class Model {
             div.addEventListener('click', (e) => {
                 let t = reg.objectActivator(60, 10, 100, 50);
                 model.add_object(t);
-                if (reg.postInitSetup != undefined)
+                if (reg.postInitSetup != null)
                     reg.postInitSetup(t);
                 model.update_svg_size();
                 e.stopPropagation();

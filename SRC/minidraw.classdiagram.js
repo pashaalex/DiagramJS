@@ -54,8 +54,8 @@
     }
     restoreStateFromObject(obj) {
         super.restoreStateFromObject(obj);
-        if (obj.methods != undefined) this.Methods = obj.methods;
-        if (obj.fields != undefined) this.Fields = obj.fields;
+        if (obj.methods != null) this.Methods = obj.methods;
+        if (obj.fields != null) this.Fields = obj.fields;
     }
     rebuild() {
         super.rebuild();

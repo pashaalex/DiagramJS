@@ -150,11 +150,11 @@
         <button id="btn_save">Save JSON</button>
         <label for="file_selector">Open JSON</label>
         <input type="file" id="file_selector" class="hidden_input" />
+        <button id="btn_clone">Clone current object</button>
     </div>
     <div id="dialogs"></div>
 
-    <script type="text/javascript">
-	
+<script type="text/javascript">
 const Statuses = {
     None: 0,
     CustomMove: 1,
@@ -335,7 +335,7 @@ class BaseFigure extends BaseRectangle {
     set X(val) {
         let prevX = this.x;
         this.x = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "x", val);
         this.positionChanged(this.x - prevX, 0);
     }
@@ -345,7 +345,7 @@ class BaseFigure extends BaseRectangle {
     set Y(val) {
         let prevY = this.y;
         this.y = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "y", val);
         this.positionChanged(0, this.y - prevY);
     }
@@ -354,7 +354,7 @@ class BaseFigure extends BaseRectangle {
     }
     set Width(val) {
         this.width = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "width", val);
         this.sizeChanged();
     }
@@ -363,7 +363,7 @@ class BaseFigure extends BaseRectangle {
     }
     set Height(val) {
         this.height = val;
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg_object.setAttributeNS(null, "height", val);
         this.sizeChanged();
     }
@@ -419,12 +419,12 @@ class BaseFigure extends BaseRectangle {
         this.removeItemFromArray(obj, this._innerObjects);
     }
     dispose() {
-        if ((this.svg_object != null) && (this.svg_object != undefined))
+        if (this.svg_object != null)
             this.svg.removeChild(this.svg_object);
 
-        for (let i = 0; i < this.connectors.length; i++) {
-            this.connectors[i].dispose();
-            this.model.removeConnector(this.connectors[i]);
+        while(this.connectors.length > 0) {
+            this.model.removeConnector(this.connectors[0]);
+            this.connectors[0].dispose(); // connector.dispose remove connector from owner connectors collection            
         }
 
         for (let i = 0; i < this._innerObjects.length; i++) 
@@ -687,7 +687,7 @@ class TextBlock extends BaseFigure {
             this.svg.removeChild(myforeign);
             this.model.textEditModeOn = false;
             if (this.parentObject != null) this.parentObject.rebuild();
-            if ((this.parentObject.model != undefined) && (this.parentObject.model != null)) {
+            if (this.parentObject.model != null) {
                 this.parentObject.model.refreshPropertyGrid();
             }
         }
@@ -873,7 +873,7 @@ class ConnectorLine {
         let bestI = 0;
         let bestV = -1;
         let points = this.relObject1.getConnectionPoints();
-        if ((this.pointIndex1 != undefined) && (this.pointIndex1 != null)) {
+        if (this.pointIndex1 != null) {
             bestI = this.pointIndex1;
         } else {
             for (let i = 0; i < points.length; i++) {
@@ -978,13 +978,13 @@ class ConnectorLine {
     }
     refresh() {
         let points1 = [];
-        if ((this.pointIndex1 != undefined) && (this.pointIndex1 != null))
+        if (this.pointIndex1 != null)
             points1.push(this.relObject1.getConnectionPoints()[this.pointIndex1]);
         else
             points1 = this.relObject1.getConnectionPoints();
 
         let points2 = [];
-        if ((this.pointIndex2 != undefined) && (this.pointIndex2 != null))
+        if (this.pointIndex2 != null)
             points2.push(this.relObject2.getConnectionPoints()[this.pointIndex2]);
         else
             points2 = this.relObject2.getConnectionPoints();
@@ -1387,7 +1387,7 @@ class LineObject extends BaseFigure {
         this.X2 = obj.x2;
         this.Y2 = obj.y2;
         this.LineColor = obj.lineColor;
-        if (obj.text != undefined) this.Text = obj.text;
+        if (obj.text != null) this.Text = obj.text;
     }
     dispose() {
         super.dispose();
@@ -1983,7 +1983,7 @@ class CommentObject extends ScalableRectangle {
         textBlock.dispose();
         this.innerTextBlock = new TextBlock();
         this.addInnerObject(this.innerTextBlock);
-        if ((this.svg != null) && (this.svg != undefined))
+        if (this.svg != null)
             this.innerTextBlock.init(this.svg, this.model);
     }
     rebuild() {
@@ -2058,6 +2058,7 @@ class CommentObject extends ScalableRectangle {
         obj.text = this.Text;
         obj.fillColor = this.FillColor;
         obj.fillFigure = this.FillFigure;
+        obj.verticalAlign = this.verticalAlign;
         obj.objectTypeName = this.constructor.name;
         
     }
@@ -2069,7 +2070,8 @@ class CommentObject extends ScalableRectangle {
         this.Height = obj.height;
         this.FillColor = obj.fillColor;
         this.FillFigure = obj.fillFigure;
-        if (obj.text != undefined) this.Text = obj.text;
+        if (obj.verticalAlign != null) this.verticalAlign = obj.verticalAlign;
+        if (obj.text != null) this.Text = obj.text;
     }
 }
 
@@ -2359,9 +2361,9 @@ class IfThenObject extends BaseScalableFigure {
     }
     restoreStateFromObject(obj) {
         super.restoreStateFromObject(obj);
-        if (obj.rightText != undefined) this.RightText = obj.rightText;
-        if (obj.leftText != undefined) this.LeftText = obj.leftText;
-        if (obj.bottomText != undefined) this.BottomText = obj.bottomText;
+        if (obj.rightText != null) this.RightText = obj.rightText;
+        if (obj.leftText != null) this.LeftText = obj.leftText;
+        if (obj.bottomText != null) this.BottomText = obj.bottomText;
     }
     dispose() {
         super.dispose();
@@ -2482,10 +2484,10 @@ class DatabaseObject extends BaseScalableFigure {
             if (this.innerFigures == null)
                 this.innerFigures = DatabaseObject.createInnerObjects(this.svg);
             DatabaseObject.refreshObjectCoordinates(
-                this.x + this.model.padding,
-                this.y + this.model.padding,
-                this.width - 2 * this.model.padding,
-                this.height - 2 * this.model.padding,
+                this.x,
+                this.y,
+                this.width,
+                this.height,
                 this.innerFigures);
         }
     }
@@ -2562,7 +2564,7 @@ class Model {
     getJsonData() {
         let objects = [];
         for (var i = 0; i < this.#Objects.length; i++)
-            if (this.#Objects[i].serializeStateToObject != undefined) {
+            if (this.#Objects[i].serializeStateToObject != null) {
                 let obj = {};
                 this.#Objects[i].serializeStateToObject(obj);
                 objects.push(obj);
@@ -2575,14 +2577,14 @@ class Model {
             obj.pointIndex1 = connector.pointIndex1;
             obj.pointIndex2 = connector.pointIndex2;
 
-            if (connector.relObject1.childId != undefined) {
+            if (connector.relObject1.childId != null) {
                 obj.relObject1_objectId = connector.relObject1.parentObject.objectId;
                 obj.relObject1_childId = connector.relObject1.childId;
             } else {
                 obj.relObject1_objectId = connector.relObject1.objectId;
             }
 
-            if (connector.relObject2.childId != undefined) {
+            if (connector.relObject2.childId != null) {
                 obj.relObject2_objectId = connector.relObject2.parentObject.objectId;
                 obj.relObject2_childId = connector.relObject2.childId;
             } else {
@@ -2630,11 +2632,11 @@ class Model {
         for (let i = 0; i < dataObj.connectors.length; i++) {
             let con_obj = dataObj.connectors[i];
             let relObject1 = obj_dict[con_obj.relObject1_objectId];
-            if (con_obj.relObject1_childId != undefined)
+            if (con_obj.relObject1_childId != null)
                 relObject1 = relObject1.getChildObjectByChildId(con_obj.relObject1_childId);
 
             let relObject2 = obj_dict[con_obj.relObject2_objectId];
-            if (con_obj.relObject2_childId != undefined)
+            if (con_obj.relObject2_childId != null)
                 relObject2 = relObject2.getChildObjectByChildId(con_obj.relObject2_childId);
 
             let connector = new ConnectorLine(relObject1);            
@@ -2656,6 +2658,41 @@ class Model {
     }
     saveJson() {
         this.#save("file.json", this.getJsonData(), 'application/json', '.json', 'JSON-file');
+    }
+    cloneCurrentObject(){
+        let selected_object = null;
+        for (var i = 0; i < this.#Objects.length; i++)
+            if (this.#Objects[i].IsSelected){
+                selected_object = this.#Objects[i];
+                break;
+            }
+        if (selected_object == null) {
+            alert("There is no selected object to clone");
+            return;
+        }
+        let obj = {};
+        selected_object.serializeStateToObject(obj);
+        if (obj.x != null) obj.x = obj.x + 20;
+        if (obj.y != null) obj.y = obj.y + 20;
+        obj.objectId = this.objectIdIncremental++;
+
+        let reg = null;
+        for (let j = 0; j < this.objectTypes.length; j++)
+            if (this.objectTypes[j].objectTypeName == obj.objectTypeName) {
+                reg = this.objectTypes[j];
+                break;
+            }
+        if (reg != null) {
+            let drObject = reg.objectActivator(0, 0, 10, 10);
+            this.add_object(drObject);
+            drObject.restoreStateFromObject(obj);
+            this.#SelectedObject = null;
+            for (var i = 0; i < this.#Objects.length; i++)
+                this.#Objects[i].IsSelected = false;
+            drObject.IsSelected = true;
+        }
+
+        this.update_svg_size();
     }
     getSvgData() {
         let wMax = 20;
@@ -2716,9 +2753,9 @@ class Model {
         if (index != -1)
             array.splice(index, 1);
     }
-    deleteObject(tbl) {
-        tbl.dispose();
-        this.removeItemFromArray(tbl, this.#Objects);
+    deleteObject(obj) {
+        obj.dispose();
+        this.removeItemFromArray(obj, this.#Objects);
     }
     key_up(e) {
         if ((e.target != null) && (e.target.tagName == "INPUT")) return;
@@ -2966,7 +3003,7 @@ class Model {
             }
         }
 
-        if ((this.#SelectedObject != null) && (this.#SelectedObject.getPropertyTypes != undefined)) {
+        if ((this.#SelectedObject != null) && (this.#SelectedObject.getPropertyTypes != null)) {
             let arr = this.#SelectedObject.getPropertyTypes();
             this.setupPropertyGrid(arr);
         } else
@@ -3049,9 +3086,9 @@ class Model {
         return null;
     }
     refreshPropertyGrid(sel_obj) {
-        if (sel_obj == undefined)
+        if (sel_obj == null)
             sel_obj = this.getFirstSelectedObjectOrConnector();
-        if ((sel_obj != null) && (sel_obj.getPropertyTypes != undefined)) {
+        if ((sel_obj != null) && (sel_obj.getPropertyTypes != null)) {
             let arr = sel_obj.getPropertyTypes();
             this.setupPropertyGrid(arr);
         } 
@@ -3162,7 +3199,7 @@ class Model {
             div.addEventListener('click', (e) => {
                 let t = reg.objectActivator(60, 10, 100, 50);
                 model.add_object(t);
-                if (reg.postInitSetup != undefined)
+                if (reg.postInitSetup != null)
                     reg.postInitSetup(t);
                 model.update_svg_size();
                 e.stopPropagation();
@@ -3205,7 +3242,6 @@ EndpointNames[EndpointTypes.Implementation] = "Implementation";
 EndpointNames[EndpointTypes.Dependancy] = "Dependancy";
 EndpointNames[EndpointTypes.Aggregation] = "Aggregation";
 EndpointNames[EndpointTypes.Composition] = "Composition";
-
 
 
 
@@ -3256,6 +3292,7 @@ class ERTableObject extends BaseFigure {
     childObjectIncremental;    
     _useFillColor;
     _fillFigure;
+    _fillColor;
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo("ERTableObject", 
             "Table",
@@ -3541,12 +3578,16 @@ class ERTableObject extends BaseFigure {
         }
         obj.fields = flds;
         obj.tableName = this.header.Text;
+        obj.fillColor = this.FillColor;
+        obj.fillFigure = this.FillFigure;
         obj.objectTypeName = this.constructor.name;
     }
     restoreStateFromObject(obj) {
         this.objectId = obj.objectId;
         this.X = obj.x;
         this.Y = obj.y;
+        if (obj.fillColor != null) this.FillColor = obj.fillColor;
+        if (obj.fillFigure != null) this.FillFigure = obj.fillFigure;        
         this.setTableName = obj.tableName;
         while (this.fields.length > 0)
             this.removeField(this.fields[0]);
@@ -3570,7 +3611,6 @@ class ERTableObject extends BaseFigure {
         }
     }
 }
-
 class ClassObject extends CommentObject {
     fieldsTextBlock;
     methodsTextBlock;
@@ -3627,8 +3667,8 @@ class ClassObject extends CommentObject {
     }
     restoreStateFromObject(obj) {
         super.restoreStateFromObject(obj);
-        if (obj.methods != undefined) this.Methods = obj.methods;
-        if (obj.fields != undefined) this.Fields = obj.fields;
+        if (obj.methods != null) this.Methods = obj.methods;
+        if (obj.fields != null) this.Fields = obj.fields;
     }
     rebuild() {
         super.rebuild();
@@ -3709,7 +3749,9 @@ class ClassObject extends CommentObject {
         this.line2.dispose();
     }
 }
-	
+</script>
+
+    <script type="text/javascript">
         let model = new Model(document.querySelector("#svg"), document.querySelector("#dialogs"));
         model.registreObjectType(ERTableObject.GetObjectTypeInfo());
         model.registreObjectType(CommentObject.GetObjectTypeInfo());
@@ -3728,6 +3770,12 @@ class ClassObject extends CommentObject {
         document.querySelector("#btn_save").addEventListener("click", function (e) {
             model.saveJson();
         });
+        document.querySelector("#btn_clone").addEventListener("click", function (e) {
+            model.cloneCurrentObject();
+        });        
+        document.querySelector("#btn_save").addEventListener("click", function (e) {
+            model.saveJson();
+        });
 
         if (window.FileList && window.File && window.FileReader) {
             document.getElementById('file_selector').addEventListener('change', event => {
@@ -3742,3 +3790,4 @@ class ClassObject extends CommentObject {
     </script>
 </body>
 </html>
+

@@ -150,13 +150,16 @@
         <button id="btn_save">Save JSON</button>
         <label for="file_selector">Open JSON</label>
         <input type="file" id="file_selector" class="hidden_input" />
+        <button id="btn_clone">Clone current object</button>
     </div>
     <div id="dialogs"></div>
 
-
+<!--scripts:begin-->
     <script src="minidraw.core.js"></script>
     <script src="minidraw.erdiagram.js"></script>
     <script src="minidraw.classdiagram.js"></script>    
+<!--scripts:end-->
+
     <script type="text/javascript">
         let model = new Model(document.querySelector("#svg"), document.querySelector("#dialogs"));
         model.registreObjectType(ERTableObject.GetObjectTypeInfo());
@@ -173,6 +176,12 @@
         btn.addEventListener("click", function (e) {
             model.getSvgFile();
         });
+        document.querySelector("#btn_save").addEventListener("click", function (e) {
+            model.saveJson();
+        });
+        document.querySelector("#btn_clone").addEventListener("click", function (e) {
+            model.cloneCurrentObject();
+        });        
         document.querySelector("#btn_save").addEventListener("click", function (e) {
             model.saveJson();
         });

@@ -265,9 +265,9 @@ class BaseFigure extends BaseRectangle {
         if (this.svg_object != null)
             this.svg.removeChild(this.svg_object);
 
-        for (let i = 0; i < this.connectors.length; i++) {
-            this.connectors[i].dispose();
-            this.model.removeConnector(this.connectors[i]);
+        while(this.connectors.length > 0) {
+            this.model.removeConnector(this.connectors[0]);
+            this.connectors[0].dispose(); // connector.dispose remove connector from owner connectors collection            
         }
 
         for (let i = 0; i < this._innerObjects.length; i++) 
@@ -1901,6 +1901,7 @@ class CommentObject extends ScalableRectangle {
         obj.text = this.Text;
         obj.fillColor = this.FillColor;
         obj.fillFigure = this.FillFigure;
+        obj.verticalAlign = this.verticalAlign;
         obj.objectTypeName = this.constructor.name;
         
     }
@@ -1912,6 +1913,7 @@ class CommentObject extends ScalableRectangle {
         this.Height = obj.height;
         this.FillColor = obj.fillColor;
         this.FillFigure = obj.fillFigure;
+        if (obj.verticalAlign != null) this.verticalAlign = obj.verticalAlign;
         if (obj.text != null) this.Text = obj.text;
     }
 }
@@ -2325,10 +2327,10 @@ class DatabaseObject extends BaseScalableFigure {
             if (this.innerFigures == null)
                 this.innerFigures = DatabaseObject.createInnerObjects(this.svg);
             DatabaseObject.refreshObjectCoordinates(
-                this.x + this.model.padding,
-                this.y + this.model.padding,
-                this.width - 2 * this.model.padding,
-                this.height - 2 * this.model.padding,
+                this.x,
+                this.y,
+                this.width,
+                this.height,
                 this.innerFigures);
         }
     }
@@ -2500,6 +2502,41 @@ class Model {
     saveJson() {
         this.#save("file.json", this.getJsonData(), 'application/json', '.json', 'JSON-file');
     }
+    cloneCurrentObject(){
+        let selected_object = null;
+        for (var i = 0; i < this.#Objects.length; i++)
+            if (this.#Objects[i].IsSelected){
+                selected_object = this.#Objects[i];
+                break;
+            }
+        if (selected_object == null) {
+            alert("There is no selected object to clone");
+            return;
+        }
+        let obj = {};
+        selected_object.serializeStateToObject(obj);
+        if (obj.x != null) obj.x = obj.x + 20;
+        if (obj.y != null) obj.y = obj.y + 20;
+        obj.objectId = this.objectIdIncremental++;
+
+        let reg = null;
+        for (let j = 0; j < this.objectTypes.length; j++)
+            if (this.objectTypes[j].objectTypeName == obj.objectTypeName) {
+                reg = this.objectTypes[j];
+                break;
+            }
+        if (reg != null) {
+            let drObject = reg.objectActivator(0, 0, 10, 10);
+            this.add_object(drObject);
+            drObject.restoreStateFromObject(obj);
+            this.#SelectedObject = null;
+            for (var i = 0; i < this.#Objects.length; i++)
+                this.#Objects[i].IsSelected = false;
+            drObject.IsSelected = true;
+        }
+
+        this.update_svg_size();
+    }
     getSvgData() {
         let wMax = 20;
         let hMax = 20;
@@ -2559,9 +2596,9 @@ class Model {
         if (index != -1)
             array.splice(index, 1);
     }
-    deleteObject(tbl) {
-        tbl.dispose();
-        this.removeItemFromArray(tbl, this.#Objects);
+    deleteObject(obj) {
+        obj.dispose();
+        this.removeItemFromArray(obj, this.#Objects);
     }
     key_up(e) {
         if ((e.target != null) && (e.target.tagName == "INPUT")) return;

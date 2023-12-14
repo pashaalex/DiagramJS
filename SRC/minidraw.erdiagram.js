@@ -45,6 +45,7 @@ class ERTableObject extends BaseFigure {
     childObjectIncremental;    
     _useFillColor;
     _fillFigure;
+    _fillColor;
     static GetObjectTypeInfo() {
         return new ObjectTypeInfo("ERTableObject", 
             "Table",
@@ -330,12 +331,16 @@ class ERTableObject extends BaseFigure {
         }
         obj.fields = flds;
         obj.tableName = this.header.Text;
+        obj.fillColor = this.FillColor;
+        obj.fillFigure = this.FillFigure;
         obj.objectTypeName = this.constructor.name;
     }
     restoreStateFromObject(obj) {
         this.objectId = obj.objectId;
         this.X = obj.x;
         this.Y = obj.y;
+        if (obj.fillColor != null) this.FillColor = obj.fillColor;
+        if (obj.fillFigure != null) this.FillFigure = obj.fillFigure;        
         this.setTableName = obj.tableName;
         while (this.fields.length > 0)
             this.removeField(this.fields[0]);

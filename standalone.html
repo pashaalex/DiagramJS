@@ -1218,8 +1218,9 @@ class LineObject extends BaseFigure {
         this.rebuild();
     }
     mouse_down(x, y) {
-        this.prevX = x;
-        this.prevY = y;
+        let { x_p, y_p } = this.model.coordinatesPreprocess({ x, y });
+        this.prevX = x_p;
+        this.prevY = y_p;
         if (this.positionPoint1.IsPointInMe(x, y)) {
             this.#isMoveActive = true;
             this.status = Statuses.CustomMove;
@@ -1889,8 +1890,9 @@ class ScalableRectangle extends BaseFigure {
         return bestI;
     }
     mouse_down(x, y) {
-        this.prevX = x;
-        this.prevY = y;
+        let { x_p, y_p } = this.model.coordinatesPreprocess({ x, y });
+        this.prevX = x_p;
+        this.prevY = y_p;
         if (this.isInConnectionPoint(x, y)) return new GetConnectionObjectResult(Statuses.DrawConnector, this, this.getNearestConnectionPointIndex(x, y));
         if ((!this.autoSize) && this.#resizeCircle.IsPointInMe(x, y)) {
             this.#isResizeActive = true;
@@ -2537,6 +2539,7 @@ class Model {
     currentEndpointType;
     objectIdIncremental;
     registeredObjects;
+    snapTo10;
     constructor(svg, dialog_element) {
         this.registeredObjects = {};
         this.padding = 3;
@@ -2560,6 +2563,7 @@ class Model {
         this.#Connectors = [];
         this.#SelectedObject = null;
         this.currentEndpointType = EndpointTypes.SimpleLine;
+        this.snapTo10 = true;
     }
     getJsonData() {
         let objects = [];
@@ -2931,24 +2935,33 @@ class Model {
             }
         }
     }
+    coordinatesPreprocess(coordinates) {
+        let { x, y } = coordinates;
+        if (this.snapTo10)
+        {
+            x = Math.round(x / 10) * 10;
+            y = Math.round(y / 10) * 10;
+        }
+        return { x_p: x, y_p: y };
+    }
     mouse_move(e) {
         if (this.#Status != Statuses.None) {
-            let { x, y } = this.getMousePos(this.svg, e);
-
+            let { x_p, y_p } = this.coordinatesPreprocess(this.getMousePos(this.svg, e));
+            
             if (this.#Status == Statuses.CustomMove) {
-                this.#SelectedObject.mouse_move(x, y);
+                this.#SelectedObject.mouse_move(x_p, y_p);
             }
 
             if (this.#Status == Statuses.MoveMeAutomaticaly) {
-                let dx = x - this.prevX;
-                let dy = y - this.prevY;
+                let dx = x_p - this.prevX;
+                let dy = y_p - this.prevY;
                 this.#SelectedObject.moveXY(dx, dy);
-                this.prevX = x;
-                this.prevY = y;
+                this.prevX = x_p;
+                this.prevY = y_p;
             }
 
             if (this.#Status == Statuses.DrawConnector) {
-                this.#SelectedObject.drawTo(x, y);
+                this.#SelectedObject.drawTo(x_p, y_p);
             }
             this.update_svg_size();
         }
@@ -2956,6 +2969,8 @@ class Model {
     mouse_down(e) {
         this.#SelectedObject = null;
         let { x, y } = this.getMousePos(this.svg, e);
+        let { x_p, y_p } = this.coordinatesPreprocess({ x, y });
+
         for (var i = 0; i < this.#Objects.length; i++)
             this.#Objects[i].IsSelected = false;
         for (var i = 0; i < this.#Connectors.length; i++)
@@ -2985,9 +3000,9 @@ class Model {
             if (click_obj_status.status == Statuses.MoveMeAutomaticaly) {
                 obj.IsSelected = true;
                 this.#Status = Statuses.MoveMeAutomaticaly
-                this.#SelectedObject = obj;
-                this.prevX = x;
-                this.prevY = y;
+                this.#SelectedObject = obj;                
+                this.prevX = x_p;
+                this.prevY = y_p;
                 break;
             }
         }
